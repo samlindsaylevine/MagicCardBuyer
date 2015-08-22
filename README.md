@@ -7,18 +7,19 @@ The problem statement is that we have a list of named cards for the hobby game M
 
 It's broken into: 
 
-1) the MagicCardBuyer, which manages the overall process
-2) BuyListReader, which parses the input text file of cards to buy
-3) BidWicketInterface, the only currently implemented interface to a number of web stores - other interfaces can be simply designed and added
-4) BuyOptimizer, which calculates the optimal set of stores to buy from.
+1. the MagicCardBuyer, which manages the overall process
+2. BuyListReader, which parses the input text file of cards to buy
+3. BidWicketInterface, the only currently implemented interface to a number of web stores - other interfaces can be simply designed and added
+4. BuyOptimizer, which calculates the optimal set of stores to buy from.
 
 I couldn't solve the math problem of how to make this calculation in an intelligent fashion, if each store we add adds a fixed shipping fee... and neither could the other people I asked. I resorted to a mostly brute-force greedy algorithm, that checks combinations of stores, and for each combination checks how much that order would cost.
 
 If you're building a practice deck, you can also define a maximum cost you are willing to pay, and then use proxies to generate a HTML page full of images suitable for printing, until you are ready to buy the real cards.
 
 Improvements:
-Better configuration, no hardcoding username & password into BidWicketInterface (!!)
-Integration with more sellers
-Testing & cleanup
-Better optimization algorithm
-Switch from gross manual HTML parsing in BidWicketInterface to BeautifulSoup
+
+- Better configuration, no hardcoding username & password into BidWicketInterface (!!)
+- Integration with more sellers
+- Testing & cleanup
+- Better optimization algorithm
+- Switch from gross manual HTML parsing in BidWicketInterface to BeautifulSoup
