@@ -3,6 +3,7 @@ import re
 import sys
 import urllib2
 import urllib
+import json
 
 if (len(sys.argv) < 2):
   print "Please enter a set name."
@@ -20,42 +21,27 @@ if (len(sys.argv) > 2):
 if (len(sys.argv) >=4):
   countString = sys.argv[3] + " "   
     
-# Look up the edition_id of the provided set in 
-# http://magiccards.info/search.html.
-searchUrl = "http://magiccards.info/search.html"
-searchPage = urllib2.urlopen(searchUrl).read()
+# Look up the set code of the provided set name from 
+# https://api.scryfall.com/sets
+setsUrl = "https://api.scryfall.com/sets"
+setsResult = urllib2.urlopen(setsUrl).read()
+sets = json.loads(setsResult)
+codes = [set['code'] for set in sets['data'] if (set['name'] == setName)]
 
-regExPattern = ( '<option value="([^"]+)">'  +
-                 setName + '</option' )
-
-regEx = re.compile(regExPattern)
-idResult = regEx.search(searchPage)
-
-if idResult == None:
-  print "Unrecognized set name: " + setName
+if (len(codes) != 1):
+  print "Expected to find one set code for set " + setName + " but found " + len(codes)
   raise SystemExit
 
-setId = idResult.group(1)
+rareParameter = "(" + " or ".join(["r:" + rarity for rarity in rarities]) + ")"
+searchString = "set:" + codes[0] + " " + rareParameter
 
-rareParameter = "(" + " or ".join(map(lambda(str) : "r:" + str, rarities)) + ")"
+searchUrl = "https://api.scryfall.com/cards/search?" + urllib.urlencode([('q', searchString)])
 
-rareUrl = ('http://www.magiccards.info/query?' + 
-	       urllib.urlencode( [ ('q', rareParameter + ' e:' + setId),
-                               ('v', 'list') ]))
+# Not handling pagination right now, this will misbehave if returning >175 cards.
 
-raresPage = urllib2.urlopen(rareUrl).read()
+cards = json.loads(urllib2.urlopen(searchUrl).read())
+cardNames = [card['name'] for card in cards['data']]
 
-tableStart = raresPage.find('table cellpadding="3"')
-tableStop = raresPage.find("</table>", tableStart)
-tableString = raresPage[tableStart:tableStop]
-
-rows = tableString.split("</tr>")
-
-for row in rows:
-  aHrefLocation = row.find("<a href")
-  if (aHrefLocation != -1):
-    closeTagLocation = row.find(">", aHrefLocation)
-    slashALocation = row.find("</a>", closeTagLocation)
-    cardName = row[closeTagLocation + 1:slashALocation]
-    print countString + cardName
+for cardName in cardNames:
+  print countString + cardName
     
