@@ -214,6 +214,11 @@ class BidWicketInterface:
         vendorName = vendorMatch.group(1)
         
         priceRegex = "ItemPrice>([^<]*)<"
+        priceMatch = re.search(priceRegex, rowContents)
+        if priceMatch == None:
+          rowStartIndex = tableContents.find(rowStart, rowStartIndex + 1)
+          continue
+
         price = float(re.search(priceRegex, rowContents).group(1))
         
         itemIdRegex = r"/TUser\?MC=CUVC&Add=([^']*)'"

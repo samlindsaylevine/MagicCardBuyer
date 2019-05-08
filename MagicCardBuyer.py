@@ -29,6 +29,9 @@ class MagicCardBuyer:
     # being (store name, set name, quantity available, price).
     priceList = []
     
+    # A 2-tuple (card name, quantity desired)
+    unbuyableAtAnyPrice = []
+
     self.write("Retrieving price information...\n")
     
     cardNumber = 0
@@ -40,8 +43,13 @@ class MagicCardBuyer:
         storeInterface.verbose = self.verbose
         priceOptions.extend(storeInterface.findPrices(cardName, cardSet))
       if len(priceOptions) == 0:
-        raise Exception("Could not find card " + cardName)
-      priceList.append((cardName, quantity, priceOptions))     
+        if self.maximumAllowedPrice > 0:
+          unbuyableAtAnyPrice.append((cardName, quantity))
+        else:
+          # Fail fast optimization here, when we want to buy something at any price but none are for sale.
+          raise Exception("Could not find card " + cardName)
+      else:
+        priceList.append((cardName, quantity, priceOptions))     
         
     getPriceFromOption = lambda(option) : option[3]
     getOptionsFromEntry = lambda(entry) : entry[2]
@@ -53,7 +61,9 @@ class MagicCardBuyer:
                              getMinPriceFromEntry(entry) > self.maximumAllowedPrice]
       tooExpensiveCards = []
       for entry in tooExpensiveEntries:
-        tooExpensiveCards.extend([entry[0]] * entry[1])                         
+        tooExpensiveCards.extend([entry[0]] * entry[1])
+      for entry in unbuyableAtAnyPrice:
+        tooExpensiveCards.extend([entry[0]] * entry[1])
       priceList = [entry for entry in priceList if 
                      getMinPriceFromEntry(entry) <= self.maximumAllowedPrice]
             
