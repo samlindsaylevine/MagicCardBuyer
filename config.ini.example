@@ -1,0 +1,9 @@
+[MagicCardBuyer]
+# The most expensive card we are willing to buy.
+# (We might in theory end up paying a little more than this, if a card
+# is cheaper at some vendor, but it isn't optimal to buy from that vendor.)
+MaximumPrice = 200
+
+[TcgPlayer]
+Username = my.username
+Password = my.password

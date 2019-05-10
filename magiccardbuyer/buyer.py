@@ -1,28 +1,28 @@
 import sys
-from BidWicketInterface import BidWicketInterface
-from BuyListReader import BuyListReader
-from BuyOptimizer import BuyOptimizer
+from buy_list_reader import BuyListReader, CardToBuy
+from configuration import Configuration
+from tcgplayer_interface import TcgPlayerInterface
 
 class MagicCardBuyer:
   def __init__(self):
-    self.storeInterfaces = [ BidWicketInterface() ]
+    self.storeInterfaces = [ TcgPlayerInterface() ]
     
     self.verbose = True
     
-    self.maximumAllowedPrice = 1.00
+    self.config = Configuration()
     
   def write(self, message):
     if self.verbose:
       sys.stderr.write(message)
     
-  def buy(self):
+  def buy(self, inputStream = sys.stdin):
     reader = BuyListReader()
     
     self.write("Reading from file...\n")
         
-    buyList = reader.read()
+    buyList = reader.read(inputStream)
     
-    self.write("Found " + str(len(buyList)) + " cards to buy.\n")
+    self.write(f"Found {len(buyList)} cards to buy.\n")
     
     # This price list is a list of 3-tuples - (card name, quantity desired,
     # list of 4-tuples), where the 4-tuples are the price options, each tuple
