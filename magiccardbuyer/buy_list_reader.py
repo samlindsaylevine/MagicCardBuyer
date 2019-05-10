@@ -1,10 +1,16 @@
+from dataclasses import dataclass
+from typing import List, Optional
 import re
 import sys
 
+@dataclass
+class CardToBuy:
+  name: str
+  quantity: int
+  setName: Optional[str]
+
 class BuyListReader:
-  def read(self):
-    inputStream = sys.stdin   
-    
+  def read(self, inputStream = sys.stdin) -> List[CardToBuy]:    
     currentSet = None
     
     output = []
@@ -36,10 +42,10 @@ class BuyListReader:
         else:
           quantity = int(quantityStr)
         cardName = match.group(2)
-        output.append((cardName, currentSet, quantity))
+        output.append(CardToBuy(cardName, quantity, currentSet))
     
     return output
     
 if __name__ == "__main__":
   reader = BuyListReader()
-  print reader.read()
+  print(reader.read())
