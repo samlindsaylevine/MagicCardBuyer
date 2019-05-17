@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import List
-from buy_list_reader import CardToBuy
+from typing import Callable, List
+from buy_list_reader import Card
 from buy_optimizer import PurchaseOption
 
 class ExecutablePurchaseOption(PurchaseOption):
@@ -8,5 +8,5 @@ class ExecutablePurchaseOption(PurchaseOption):
 
 class StoreInterface(ABC):
 	@abstractmethod
-	def find_options(cardTobuy: CardToBuy) -> List[ExecutablePurchaseOption]:
+	def find_options(card: Card) -> List[ExecutablePurchaseOption]:
 		pass

@@ -8,3 +8,4 @@ class Configuration:
 		self.maximum_price = config['MagicCardBuyer'].get("MaximumPrice")
 		self.tcgplayer_username = config['TcgPlayer'].get("Username")
 		self.tcgplayer_password = config['TcgPlayer'].get("Password")
+		self.mimimum_purchase = config['MagicCardBuyer'].get("MinimumPurchase")

@@ -5,6 +5,11 @@ import urllib2
 import urllib
 import json
 
+"""A helper script for outputting cards of a particular set and rarity, suitable for feeding into the 
+main buyer.
+"""
+
+
 if (len(sys.argv) < 2):
   print "Please enter a set name."
   raise SystemExit

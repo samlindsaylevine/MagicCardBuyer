@@ -1,5 +1,7 @@
+from collections import Counter
 import sys
 from buy_list_reader import BuyListReader, CardToBuy
+from buy_optimizer import VendorProblem
 from configuration import Configuration
 from tcgplayer_interface import TcgPlayerInterface
 
@@ -23,97 +25,37 @@ class MagicCardBuyer:
     buyList = reader.read(inputStream)
     
     self.write(f"Found {len(buyList)} cards to buy.\n")
-    
-    # This price list is a list of 3-tuples - (card name, quantity desired,
-    # list of 4-tuples), where the 4-tuples are the price options, each tuple
-    # being (store name, set name, quantity available, price).
-    priceList = []
-    
-    # A 2-tuple (card name, quantity desired)
-    unbuyableAtAnyPrice = []
-
     self.write("Retrieving price information...\n")
-    
-    cardNumber = 0
-    
-    for cardInfo in buyList:
-      cardName, cardSet, quantity = cardInfo
-      priceOptions = []
-      for storeInterface in self.storeInterfaces:
-        storeInterface.verbose = self.verbose
-        priceOptions.extend(storeInterface.findPrices(cardName, cardSet))
-      if len(priceOptions) == 0:
-        if self.maximumAllowedPrice > 0:
-          unbuyableAtAnyPrice.append((cardName, quantity))
-        else:
-          # Fail fast optimization here, when we want to buy something at any price but none are for sale.
-          raise Exception("Could not find card " + cardName)
-      else:
-        priceList.append((cardName, quantity, priceOptions))     
-        
-    getPriceFromOption = lambda(option) : option[3]
-    getOptionsFromEntry = lambda(entry) : entry[2]
-    getMinPriceFromEntry = lambda(entry) : reduce(min, map(getPriceFromOption,
-                                                           getOptionsFromEntry(entry)))
-    
-    if self.maximumAllowedPrice > 0:
-      tooExpensiveEntries = [entry for entry in priceList if 
-                             getMinPriceFromEntry(entry) > self.maximumAllowedPrice]
-      tooExpensiveCards = []
-      for entry in tooExpensiveEntries:
-        tooExpensiveCards.extend([entry[0]] * entry[1])
-      for entry in unbuyableAtAnyPrice:
-        tooExpensiveCards.extend([entry[0]] * entry[1])
-      priceList = [entry for entry in priceList if 
-                     getMinPriceFromEntry(entry) <= self.maximumAllowedPrice]
-            
-    self.write("\nOptimizing purchase...\n")
-      
-    optimizer = BuyOptimizer()
-    optimizer.verbose = self.verbose
-    
-    # This is a list of orders; each order is a tuple (card name, list) with 
-    # the list containing 3-tuples that are (store name, set name, quantity).
-    buyOrders = optimizer.solve(priceList)
-    
-    self.write("Estimated total cost: " + str(optimizer.totalPrice(buyOrders)) + "\n")
-    
-    for buyOrder in buyOrders:
-      cardName, orderList = buyOrder
-      totalQuantity = sum([order[2] for order in orderList])
-      totalPrice = sum([order[2]*order[3] for order in orderList])
-      priceString = ", ".join([str(order[2]) + " @ " + str(order[3])])
-      #self.write(str(totalQuantity) + " " + cardName + ": " + priceString + "; total " + str(totalPrice) + "\n")
-    
-    self.write("Purchasing cards...\n")
-       
-    cardNumber = 0
-    
-    for buyOrder in buyOrders:
-      cardName, orderList = buyOrder
-      
-      for order in orderList:
-        storeName, setName, quantity, price = order
-        for interface in self.storeInterfaces:
-          if storeName in interface.storeNames:
-            try:
-              interface.buyCard(cardName, storeName, setName, quantity)
-              pass
-            except:
-              self.write("\nUnable to purchase " + str(quantity) + " " + setName + " " + cardName + " from " + storeName + "\n")
-            
-      cardNumber = cardNumber + 1
-      self.write(".")
-      if (cardNumber % 10 == 0):
-        self.write("[" + str(cardNumber) + "]")
-        
-    self.write("\n")
-    
-    if self.maximumAllowedPrice > 0:
+
+    # Retrieve PurchaseOptions from the store interfaces.
+    options = []
+    cardsSought = Counter()
+    tooExpensive = []
+
+    for cardToBuy in buyList:
+      cardOptions = [store.find_options(cardToBuy.card) for store in storeInterfaces]
+      # For any card that is too expensive - i.e., no purchase options exist below our maximum price -
+      # skip it and instead add it to our "too expensive list" for output later.
+      if config.maximumPrice is not None and all(option.price > config.maximumPrice for option in cardOptions):
+        tooExpensive.append(cardToBuy)
+      else
+        cardsSought[cardToBuy.card] += cardToBuy.quantity
+        options.extend(cardOptions)
+
+    self.write("Optimizing purchase options...")
+    problem = VendorProblem(cardsSought, options, config.minimum_purchase)
+    solution = BuyOptimizer.solve(problem)
+    self.write(f"Solved; total cost {solution.totalCost}")
+
+    self.write("Executing purchases...")
+    for purchaseToMake in solution.purchasesToMake:
+      purchaseToMake.option.purchase(purchaseToMake.quantity)
+
+    # Output anything that was too expensive.
+    if len(tooExpensive > 0):
       self.write("Outputting unpurchased cards...\n")
-      for cardName in tooExpensiveCards:
-        print cardName
-    
+    for cardToBuy in tooExpensive:
+      print(f"{cardToBuy.quantity} {cardToBuy.card.name}")    
         
 if __name__ == "__main__":
   buyer = MagicCardBuyer()

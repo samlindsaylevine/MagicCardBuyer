@@ -16,7 +16,7 @@ in order to linearize the minimum threshold requirement.)
 We use Google's OR Tools library to solve the MILP problem once we have expressed it.
 """
 
-
+from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import groupby
 from typing import List, Dict, Any
@@ -26,15 +26,20 @@ def groupToDict(inputList: List[Any], by) -> Dict[Any, List[Any]]:
 	"""Helper method for turning a list into a dict, grouping by a provided function.
 
 	The equivalent of Java or Kotlin's groupBy."""
-	sortedList = sorted(inputList, key=by)
-	return {key: list(values) for key, values in groupby(sortedList, by)}
+	output = defaultdict(list)
+	for item in inputList:
+		output[by(item)].append(item)
+	return {key: value for key, value in output.items()}
 
 @dataclass
 class PurchaseOption:
 	"""A single option for purchasing a particular good from a particular vendor.
 
-	Goods and vendors are correlated by their string name."""
-	good: str
+	Goods can be anything but must have a string repr and an equals, and be hashable (Strings, dataclasses...
+	Note that if you use a dataclass it must be hashable - i.e., frozen or unsafe hash.)
+
+	Vendors are correlated by their string name."""
+	good: Any
 	vendor: str
 	availableQuantity: int 
 	price: int
@@ -44,7 +49,7 @@ class VendorProblem:
 	"""An optimization problem to be solved.
 
 	minimumRequiredPurchase -- this is for each vendor."""
-	goodQuantitiesSought: Dict[str, int]
+	goodQuantitiesSought: Dict[Any, int]
 	purchaseOptions: List[PurchaseOption]
 	minimumRequiredPurchase: int
 

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import unittest
 from magiccardbuyer.buy_optimizer import *
 
@@ -130,6 +131,32 @@ class TestBuyOptimizer(unittest.TestCase):
 			purchase.option.vendor == "IrrelevantVendor"]
 		self.assertEqual(purchasesFromIrrelevantVendor, [])
 
+	def test_good_is_a_dataclass(self):
+		options = [PurchaseOption(Fish("carp", 10), "Merchant1", 1, 10),
+					PurchaseOption(Fish("carp", 20), "Merchant1", 1, 100),
+					PurchaseOption(Fish("sunfish", 10), "Merchant1", 1, 100),
+					PurchaseOption(Fish("sunfish", 20), "Merchant1", 1, 10),
+					PurchaseOption(Fish("carp", 10), "Merchant2", 1, 100),
+					PurchaseOption(Fish("carp", 20), "Merchant2", 1, 10),
+					PurchaseOption(Fish("sunfish", 10), "Merchant2", 1, 10),
+					PurchaseOption(Fish("sunfish", 20), "Merchant2", 1, 100)]
+		problem = VendorProblem(minimumRequiredPurchase = 1,
+			goodQuantitiesSought = {Fish("carp", 10): 1, Fish("carp", 20): 1, Fish("sunfish", 10): 1, Fish("sunfish", 20): 1},
+			purchaseOptions = options)
+
+		solution = BuyOptimizer().solve(problem)
+
+		expected = VendorSolution(totalCost = 10 * 4,
+			purchasesToMake = [PurchaseToMake(1, PurchaseOption(Fish("carp", 10), "Merchant1", 1, 10)),
+				PurchaseToMake(1, PurchaseOption(Fish("sunfish", 20), "Merchant1", 1, 10)),
+				PurchaseToMake(1, PurchaseOption(Fish("carp", 20), "Merchant2", 1, 10)),
+				PurchaseToMake(1, PurchaseOption(Fish("sunfish", 10), "Merchant2", 1, 10))])
+		self.assertEqual(solution, expected)
+
+@dataclass(frozen=True)
+class Fish:
+	species: str
+	weight: int
 
 if __name__ == '__main__':
     unittest.main()

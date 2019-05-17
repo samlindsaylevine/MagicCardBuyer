@@ -3,11 +3,15 @@ from typing import List, Optional
 import re
 import sys
 
+@dataclass(frozen=True)
+class Card:
+  name: str
+  setName: Optional[str]
+
 @dataclass
 class CardToBuy:
-  name: str
+  card: Card
   quantity: int
-  setName: Optional[str]
 
 class BuyListReader:
   def read(self, inputStream = sys.stdin) -> List[CardToBuy]:    
@@ -42,7 +46,7 @@ class BuyListReader:
         else:
           quantity = int(quantityStr)
         cardName = match.group(2)
-        output.append(CardToBuy(cardName, quantity, currentSet))
+        output.append(CardToBuy(Card(cardName, currentSet), quantity))
     
     return output
     

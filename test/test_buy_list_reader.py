@@ -15,7 +15,7 @@ class TestBuyListReader(unittest.TestCase):
 
 		result = BuyListReader().read(input)
 
-		expected = [CardToBuy("Shivan Dragon", 1, None)]
+		expected = [CardToBuy(Card("Shivan Dragon", None), 1)]
 		self.assertEqual(result, expected)
 
 	def test_multiple_cards(self):
@@ -25,9 +25,9 @@ class TestBuyListReader(unittest.TestCase):
 
 		result = BuyListReader().read(input)
 
-		expected = [CardToBuy("Shivan Dragon", 1, None),
-			CardToBuy("Swords to Plowshares", 1, None),
-			CardToBuy("Serra Angel", 1, None)]
+		expected = [CardToBuy(Card("Shivan Dragon", None), 1),
+			CardToBuy(Card("Swords to Plowshares", None), 1),
+			CardToBuy(Card("Serra Angel", None), 1)]
 		self.assertEqual(result, expected)
 
 	def test_empty_lines(self):
@@ -39,8 +39,8 @@ class TestBuyListReader(unittest.TestCase):
 
 		result = BuyListReader().read(input)
 
-		expected = [CardToBuy("Shivan Dragon", 1, None),
-			CardToBuy("Serra Angel", 1, None)]
+		expected = [CardToBuy(Card("Shivan Dragon", None), 1),
+			CardToBuy(Card("Serra Angel", None), 1)]
 		self.assertEqual(result, expected)
 
 
@@ -50,7 +50,7 @@ class TestBuyListReader(unittest.TestCase):
 
 		result = BuyListReader().read(input)
 
-		expected = [CardToBuy("Shivan Dragon", 1, "Revised")]
+		expected = [CardToBuy(Card("Shivan Dragon", "Revised"), 1)]
 		self.assertEqual(result, expected)
 
 	def test_specifying_quantities(self):
@@ -59,8 +59,8 @@ class TestBuyListReader(unittest.TestCase):
 
 		result = BuyListReader().read(input)
 
-		expected = [CardToBuy("Shivan Dragon", 15, None),
-			CardToBuy("Giant Growth", 122, None)]
+		expected = [CardToBuy(Card("Shivan Dragon", None), 15),
+			CardToBuy(Card("Giant Growth", None), 122)]
 		self.assertEqual(result, expected)
 
 	def test_specifying_different_sets(self):
@@ -71,8 +71,8 @@ class TestBuyListReader(unittest.TestCase):
 
 		result = BuyListReader().read(input)
 
-		expected = [CardToBuy("Giant Growth", 4, "Revised"),
-			CardToBuy("Giant Growth", 4, "Ice Age")]
+		expected = [CardToBuy(Card("Giant Growth", "Revised"), 4),
+			CardToBuy(Card("Giant Growth", "Ice Age"), 4)]
 		self.assertEqual(result, expected)
 
 if __name__ == '__main__':

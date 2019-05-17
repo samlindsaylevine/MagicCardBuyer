@@ -2,7 +2,10 @@
 # The most expensive card we are willing to buy.
 # (We might in theory end up paying a little more than this, if a card
 # is cheaper at some vendor, but it isn't optimal to buy from that vendor.)
+# Omit if you are always willing to buy at market price.
 MaximumPrice = 200
+# Minimum total amount required to buy from a particular vendor.
+MinimumPurchase = 200
 
 [TcgPlayer]
 Username = my.username
