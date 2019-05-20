@@ -1,58 +1,45 @@
 from typing import List
-import socket
 import sys	
-import urllib.error
-import urllib.parse
-import urllib.request
 from bs4 import BeautifulSoup
 from buy_list_reader import Card, CardToBuy
+from configuration import Configuration
 from store_interface import ExecutablePurchaseOption, StoreInterface
+from webpage_reader import WebpageReader
 
-"""TCG Player has a REST API, but it requires manually signing up and getting human-approved
-to get an API key. I don't want script users to have to do that, and I definitely don't want
-to get such a key myself and then check it into Github. So, it's HTML scraping ahoy in here.
-I guess that's the public, unauthenticated interface...
-"""
 class TcgPlayerInterface(StoreInterface):
-	minimum_purchase = 200
+	"""TCG Player has a REST API, but it requires manually signing up and getting human-approved
+	to get an API key. I don't want script users to have to do that, and I definitely don't want
+	to get such a key myself and then check it into Github. So, it's HTML scraping ahoy in here.
+	I guess that's the public, unauthenticated interface...
+	"""
 
-	def __init__(self):
+	minimum_purchase = Configuration().minimum_purchase
+
+	def __init__(self, webpage_reader = None):
 		self.allowedConditions = ["Near Mint", "Lightly Played"]
-		self.verbose = True
+		self.webpage_reader = WebpageReader.from_config(Configuration()) if webpage_reader is None else webpage_reader
 
 	def find_options(self, card: Card) -> List[ExecutablePurchaseOption]:
+		self.write(f"Finding purchase options for {card.name} from {card.setName}\n")
 		product_ids = self._find_product_ids(card)
 		options = [option for product_id in product_ids for option in self._purchase_options(card, product_id)]
-		# Only allow those in allowed conditions
-		# Only allow those with free shipping
+		# Right now, only allowing those with free shipping.
 		# Room for improvement: allow those with threshold shipping and have minimum purchase prices per vendor
-		return options
+		return [option for option in options if option.condition in self.allowedConditions and option.minimumPurchase == TcgPlayerInterface.minimum_purchase]
 
 	def write(self, message):
 	  if self.verbose:
 	    sys.stderr.write(message)
-
-	def _readUrl(self, url):
-		timeoutInSecs = 20
-		maxRetries = 5
-		for retryCount in range(1, maxRetries):
-			try:
-				return urllib.request.urlopen(url, timeout=timeoutInSecs).read()
-			except (urllib.error.URLError, socket.timeout) as e:
-				self.write("Failed to load URL '" + url + "' on attempt " + str(retryCount) + ": " + str(e) + "\n")
-				# Try again.
-		raise IOError("Couldn't load '" + url + "' after " + str(maxRetries) + " attempts!")
 
 	def _find_product_ids(self, card: Card) -> List[str]:
 		# For a set:
 		# https://shop.tcgplayer.com/magic/war-of-the-spark?ProductName=giant+growth
 		# For no set:
 		# https://shop.tcgplayer.com/magic/product/show?ProductName=giant+growth
-		self.write(f"Finding product IDs for {card.name} from {card.setName}\n")
 		cardPath = self._card_name_path_element(card.name)
 		url = (f"https://shop.tcgplayer.com/magic/product/show?ProductName={cardPath}" if card.setName is None
 			else f"https://shop.tcgplayer.com/magic/{self._set_path_element(card.setName)}?ProductName={cardPath}") 
-		html = self._readUrl(url)
+		html = self.webpage_reader.read(url)
 		page = BeautifulSoup(html, 'html.parser')
 		return [self._extract_product_id(link.get('href')) for link in page.find_all('a', class_="product__price-guide")]
 
@@ -71,7 +58,7 @@ class TcgPlayerInterface(StoreInterface):
 
 	def _purchase_options(self, card: Card, productId: str):
 		url = f"https://shop.tcgplayer.com/productcatalog/product/getpricetable?pageSize=50&productId={productId}&gameName=magic"
-		html = self._readUrl(url)
+		html = self.webpage_reader.read(url)
 		page = BeautifulSoup(html, 'html.parser')
 		listings = page.find_all("div", class_="product-listing")
 		return [TcgPlayerPurchaseOption.from_node(card, listing) for listing in listings]
@@ -83,7 +70,7 @@ class TcgPlayerPurchaseOption(ExecutablePurchaseOption):
 		self.availableQuantity = availableQuantity
 		self.price = price
 		# TODO - base off purchase ID, see what happens when we purchase
-		self.purchase = lambda quantity: print(f"Buying {quantity} {card.cardName} from {vendor}")
+		self.purchase = lambda quantity: print(f"Buying {quantity} {card.name} from {vendor}")
 		self.condition = condition
 		self.minimumPurchase = minimumPurchase
 
@@ -138,6 +125,5 @@ class TcgPlayerError(Exception):
 		super().__init__(message)
 
 if __name__ == '__main__':
-	options = TcgPlayerInterface().find_options(Card("Crow Storm", "Unstable"))
-	for option in options:
-		print(f"{option.good.name} {option.vendor} {option.condition} {option.price} {option.minimumPurchase}")
+	options = TcgPlayerInterface().find_options(Card("Giant Growth", None))
+	options[0].purchase(1)

@@ -33,12 +33,13 @@ class MagicCardBuyer:
     tooExpensive = []
 
     for cardToBuy in buyList:
-      cardOptions = [store.find_options(cardToBuy.card) for store in storeInterfaces]
+      cardOptions = [option for store in self.storeInterfaces
+        for option in store.find_options(cardToBuy.card) ]
       # For any card that is too expensive - i.e., no purchase options exist below our maximum price -
       # skip it and instead add it to our "too expensive list" for output later.
-      if config.maximumPrice is not None and all(option.price > config.maximumPrice for option in cardOptions):
+      if self.config.maximum_price is not None and all(option.price > self.config.maximum_price for option in cardOptions):
         tooExpensive.append(cardToBuy)
-      else
+      else:
         cardsSought[cardToBuy.card] += cardToBuy.quantity
         options.extend(cardOptions)
 
@@ -56,7 +57,8 @@ class MagicCardBuyer:
       self.write("Outputting unpurchased cards...\n")
     for cardToBuy in tooExpensive:
       print(f"{cardToBuy.quantity} {cardToBuy.card.name}")    
-        
+
+
 if __name__ == "__main__":
   buyer = MagicCardBuyer()
   buyer.buy()
