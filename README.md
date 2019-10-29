@@ -1,3 +1,5 @@
+TODO: Make sure we only allow direct hits for card names
+
 # MagicCardBuyer
 A hand-rolled tool for automatically making optimal Magic the Gathering purchases.
 

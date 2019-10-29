@@ -6,7 +6,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from configuration import Configuration
+from magiccardbuyer.configuration import Configuration
 
 class WebpageReader:
 	"""This utility class lets us isolate our webpage reading in one place;

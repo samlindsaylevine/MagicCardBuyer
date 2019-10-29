@@ -1,10 +1,11 @@
 from typing import List
 import sys	
+import urllib
 from bs4 import BeautifulSoup
-from buy_list_reader import Card, CardToBuy
-from configuration import Configuration
-from store_interface import ExecutablePurchaseOption, StoreInterface
-from webpage_reader import WebpageReader
+from magiccardbuyer.buy_list_reader import Card, CardToBuy
+from magiccardbuyer.configuration import Configuration
+from magiccardbuyer.store_interface import ExecutablePurchaseOption, StoreInterface
+from magiccardbuyer.webpage_reader import WebpageReader
 
 class TcgPlayerInterface(StoreInterface):
 	"""TCG Player has a REST API, but it requires manually signing up and getting human-approved
@@ -16,6 +17,7 @@ class TcgPlayerInterface(StoreInterface):
 	minimum_purchase = Configuration().minimum_purchase
 
 	def __init__(self, webpage_reader = None):
+		self.verbose = True
 		self.allowedConditions = ["Near Mint", "Lightly Played"]
 		self.webpage_reader = WebpageReader.from_config(Configuration()) if webpage_reader is None else webpage_reader
 

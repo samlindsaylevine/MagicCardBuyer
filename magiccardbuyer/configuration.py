@@ -10,4 +10,4 @@ class Configuration:
 		self.tcgplayer_username = config['TcgPlayer'].get("Username")
 		self.tcgplayer_password = config['TcgPlayer'].get("Password")
 		self.minimum_purchase = int(config['MagicCardBuyer'].get("MinimumPurchase"))
-		self.cache = config['TcgPlayer'].get("Cache") == "True"
+		self.cache = config['MagicCardBuyer'].get("Cache") == "True"

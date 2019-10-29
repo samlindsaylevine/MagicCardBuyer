@@ -1,9 +1,9 @@
 from collections import Counter
 import sys
-from buy_list_reader import BuyListReader, CardToBuy
-from buy_optimizer import VendorProblem
-from configuration import Configuration
-from tcgplayer_interface import TcgPlayerInterface
+from magiccardbuyer.buy_list_reader import BuyListReader, CardToBuy
+from magiccardbuyer.buy_optimizer import VendorProblem
+from magiccardbuyer.configuration import Configuration
+from magiccardbuyer.tcgplayer_interface import TcgPlayerInterface
 
 class MagicCardBuyer:
   def __init__(self):
