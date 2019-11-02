@@ -38,7 +38,7 @@ if (len(codes) != 1):
   raise SystemExit
 
 rareParameter = "(" + " or ".join(["r:" + rarity for rarity in rarities]) + ")"
-searchString = "set:" + codes[0] + " not:pwdeck -t:basic " + rareParameter
+searchString = "set:" + codes[0] + " is:booster -t:basic " + rareParameter
 
 searchUrl = "https://api.scryfall.com/cards/search?" + urllib.urlencode([('q', searchString)])
 

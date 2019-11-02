@@ -1,7 +1,7 @@
 from collections import Counter
 import sys
 from magiccardbuyer.buy_list_reader import BuyListReader, CardToBuy
-from magiccardbuyer.buy_optimizer import VendorProblem
+from magiccardbuyer.buy_optimizer import BuyOptimizer, VendorProblem
 from magiccardbuyer.configuration import Configuration
 from magiccardbuyer.tcgplayer_interface import TcgPlayerInterface
 
@@ -38,14 +38,16 @@ class MagicCardBuyer:
       # For any card that is too expensive - i.e., no purchase options exist below our maximum price -
       # skip it and instead add it to our "too expensive list" for output later.
       if self.config.maximum_price is not None and all(option.price > self.config.maximum_price for option in cardOptions):
+        self.write(f"Too expensive {cardToBuy.card}\n")
         tooExpensive.append(cardToBuy)
       else:
+        self.write(f"{cardToBuy.card}: {cardToBuy.quantity}\n")
         cardsSought[cardToBuy.card] += cardToBuy.quantity
         options.extend(cardOptions)
 
     self.write("Optimizing purchase options...")
-    problem = VendorProblem(cardsSought, options, config.minimum_purchase)
-    solution = BuyOptimizer.solve(problem)
+    problem = VendorProblem(dict(cardsSought), options, self.config.minimum_purchase)
+    solution = BuyOptimizer().solve(problem)
     self.write(f"Solved; total cost {solution.totalCost}")
 
     self.write("Executing purchases...")
