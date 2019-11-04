@@ -1,5 +1,5 @@
 [MagicCardBuyer]
-# The most expensive card we are willing to buy.
+# The most expensive card we are willing to buy; in cents.
 # (We might in theory end up paying a little more than this, if a card
 # is cheaper at some vendor, but it isn't optimal to buy from that vendor.)
 # Omit if you are always willing to buy at market price.
