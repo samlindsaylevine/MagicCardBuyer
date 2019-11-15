@@ -48,8 +48,14 @@ class MagicCardBuyer:
                 cards_sought[cardToBuy.card] += cardToBuy.quantity
                 options.extend(card_options)
 
+        # Calculate the minimum price for each vendor we discovered amongst our options.
+        vendors = {option.vendor for option in options}
+        min_by_vendor = {vendor: max([option.minimum_purchase for option in options if option.vendor == vendor
+                                      and option.minimum_purchase is not None])
+                         for vendor in vendors}
+
         self.write("Optimizing purchase options...\n")
-        problem = VendorProblem(dict(cards_sought), options, self.config.minimum_purchase)
+        problem = VendorProblem(dict(cards_sought), options, min_by_vendor)
         solution = BuyOptimizer().solve(problem)
         self.write(f"Solved; total cost {solution.totalCost}\n")
 

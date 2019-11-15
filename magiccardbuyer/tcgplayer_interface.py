@@ -18,7 +18,7 @@ class TcgPlayerInterface(StoreInterface):
     I guess that's the public, unauthenticated interface...
     """
 
-    minimum_purchase = Configuration().minimum_purchase
+    default_minimum_purchase = 200
 
     def __init__(self, webpage_reader=None):
         self.verbose = True
@@ -30,11 +30,8 @@ class TcgPlayerInterface(StoreInterface):
                    f"{'any set' if card.setName is None else card.setName}\n")
         product_ids = self._find_product_ids(card)
         purchase_options = [option for product_id in product_ids for option in self._purchase_options(card, product_id)]
-        # Right now, only allowing those with free shipping.
-        # Room for improvement: allow those with threshold shipping and have minimum purchase prices per vendor
         return [option for option in purchase_options if
-                option.condition in self.allowedConditions and
-                option.minimum_purchase == TcgPlayerInterface.minimum_purchase]
+                option.condition in self.allowedConditions]
 
     def write(self, message):
         if self.verbose:
@@ -121,7 +118,7 @@ class TcgPlayerPurchaseOption(ExecutablePurchaseOption):
             # Shipping cost is additional; only the base minimum price applies.
             shipping_cost_str = shipping_node.contents[-1].strip()
             shipping_cost = TcgPlayerPurchaseOption._parse_shipping_cost(shipping_cost_str)
-            return base_price + shipping_cost, TcgPlayerInterface.minimum_purchase
+            return base_price + shipping_cost, TcgPlayerInterface.default_minimum_purchase
         else:
             # Shipping is free (with a minimum).
             return base_price, TcgPlayerPurchaseOption._parse_minimum(purchase_link.string)
@@ -141,7 +138,7 @@ class TcgPlayerPurchaseOption(ExecutablePurchaseOption):
     @classmethod
     def _parse_minimum(cls, minimum_str: str) -> int:
         if minimum_str == "+ Shipping: Included":
-            return TcgPlayerInterface.minimum_purchase
+            return TcgPlayerInterface.default_minimum_purchase
         orders_over = "Free Shipping on Orders Over $"
         if minimum_str.startswith(orders_over):
             return int(minimum_str[len(orders_over):]) * 100

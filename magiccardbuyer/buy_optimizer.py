@@ -59,10 +59,11 @@ class PurchaseOption:
 class VendorProblem:
     """An optimization problem to be solved.
 
-    minimumRequiredPurchase -- this is for each vendor."""
+    minimumRequiredPurchase -- if a vendor's name is not present in this dict, they have no minimum purchase."""
     goodQuantitiesSought: Dict[Any, int]
     purchaseOptions: List[PurchaseOption]
-    minimumRequiredPurchase: int
+
+    minimumRequiredPurchaseByVendor: Dict[str, int]
 
     optionsByGood: Dict[str, PurchaseOption] = field(init=False)
     optionsByVendor: Dict[str, PurchaseOption] = field(init=False)
@@ -139,10 +140,12 @@ class BuyOptimizer:
         # (MINIMUM_SPEND) * buyFlag - quantity1 * cost1 - quantity2 * cost2 - ... <= 0
         # Here is where the buyFlag lets us maintain linearity.
         for vendor in buy_flags_by_vendor.keys():
-            minimum_spend = solver.Constraint(-solver.infinity(), 0)
-            minimum_spend.SetCoefficient(buy_flags_by_vendor[vendor], problem.minimumRequiredPurchase)
-            for variable in variables_by_vendor[vendor]:
-                minimum_spend.SetCoefficient(variable[0], -variable[1].price)
+            if vendor in problem.minimumRequiredPurchaseByVendor:
+                minimum_spend = solver.Constraint(-solver.infinity(), 0)
+                minimum_spend.SetCoefficient(buy_flags_by_vendor[vendor],
+                                             problem.minimumRequiredPurchaseByVendor[vendor])
+                for variable in variables_by_vendor[vendor]:
+                    minimum_spend.SetCoefficient(variable[0], -variable[1].price)
 
         total_cost = solver.Objective()
         for variable in quantity_variables:

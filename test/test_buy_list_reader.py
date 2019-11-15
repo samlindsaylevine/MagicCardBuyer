@@ -5,26 +5,26 @@ from magiccardbuyer.buy_list_reader import *
 
 class TestBuyListReader(unittest.TestCase):
     def test_empty(self):
-        input = StringIO()
+        input_stream = StringIO()
 
-        result = BuyListReader().read(input)
+        result = BuyListReader().read(input_stream)
 
         self.assertEqual(result, [])
 
     def test_single_card(self):
-        input = StringIO("Shivan Dragon")
+        input_stream = StringIO("Shivan Dragon")
 
-        result = BuyListReader().read(input)
+        result = BuyListReader().read(input_stream)
 
         expected = [CardToBuy(Card("Shivan Dragon", None), 1)]
         self.assertEqual(result, expected)
 
     def test_multiple_cards(self):
-        input = StringIO("""Shivan Dragon
-							Swords to Plowshares
-							Serra Angel""")
+        input_steram = StringIO("""Shivan Dragon
+                                   Swords to Plowshares
+                                   Serra Angel""")
 
-        result = BuyListReader().read(input)
+        result = BuyListReader().read(input_steram)
 
         expected = [CardToBuy(Card("Shivan Dragon", None), 1),
                     CardToBuy(Card("Swords to Plowshares", None), 1),
@@ -32,44 +32,44 @@ class TestBuyListReader(unittest.TestCase):
         self.assertEqual(result, expected)
 
     def test_empty_lines(self):
-        input = StringIO("""Shivan Dragon
+        input_stream = StringIO("""Shivan Dragon
 
 
 
-							Serra Angel""")
+                            Serra Angel""")
 
-        result = BuyListReader().read(input)
+        result = BuyListReader().read(input_stream)
 
         expected = [CardToBuy(Card("Shivan Dragon", None), 1),
                     CardToBuy(Card("Serra Angel", None), 1)]
         self.assertEqual(result, expected)
 
     def test_specifying_set(self):
-        input = StringIO("""Revised:
-							Shivan Dragon""")
+        input_stream = StringIO("""Revised:
+                                   Shivan Dragon""")
 
-        result = BuyListReader().read(input)
+        result = BuyListReader().read(input_stream)
 
         expected = [CardToBuy(Card("Shivan Dragon", "Revised"), 1)]
         self.assertEqual(result, expected)
 
     def test_specifying_quantities(self):
-        input = StringIO("""15 Shivan Dragon
-							122 Giant Growth""")
+        input_stream = StringIO("""15 Shivan Dragon
+                                   122 Giant Growth""")
 
-        result = BuyListReader().read(input)
+        result = BuyListReader().read(input_stream)
 
         expected = [CardToBuy(Card("Shivan Dragon", None), 15),
                     CardToBuy(Card("Giant Growth", None), 122)]
         self.assertEqual(result, expected)
 
     def test_specifying_different_sets(self):
-        input = StringIO("""Revised:
-							4 Giant Growth
-							Ice Age:
-							4 Giant Growth""")
+        input_stream = StringIO("""Revised:
+                                   4 Giant Growth
+                                   Ice Age:
+                                   4 Giant Growth""")
 
-        result = BuyListReader().read(input)
+        result = BuyListReader().read(input_stream)
 
         expected = [CardToBuy(Card("Giant Growth", "Revised"), 4),
                     CardToBuy(Card("Giant Growth", "Ice Age"), 4)]

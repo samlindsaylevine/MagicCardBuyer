@@ -8,7 +8,7 @@ class TestBuyOptimizer(unittest.TestCase):
         options = [PurchaseOption("apple", "Merchant1", 1, 30),
                    PurchaseOption("banana", "Merchant1", 1, 40),
                    PurchaseOption("coconut", "Merchant1", 1, 50)]
-        problem = VendorProblem(minimumRequiredPurchase=100,
+        problem = VendorProblem(minimumRequiredPurchaseByVendor={'Merchant1': 100},
                                 goodQuantitiesSought={'apple': 1, 'banana': 1, 'coconut': 1},
                                 purchaseOptions=options)
 
@@ -27,7 +27,7 @@ class TestBuyOptimizer(unittest.TestCase):
                    PurchaseOption("banana", "Merchant2", 1, 15),
                    PurchaseOption("coconut", "Merchant2", 1, 10),
                    PurchaseOption("date", "Merchant2", 1, 199)]
-        problem = VendorProblem(minimumRequiredPurchase=200,
+        problem = VendorProblem(minimumRequiredPurchaseByVendor={'Merchant1': 200, 'Merchant2': 200},
                                 goodQuantitiesSought={'apple': 1, 'banana': 1, 'coconut': 1, 'date': 1},
                                 purchaseOptions=options)
 
@@ -52,7 +52,7 @@ class TestBuyOptimizer(unittest.TestCase):
                    PurchaseOption("coconut", "Merchant2", 1, 10),
                    PurchaseOption("date", "Merchant2", 1, 199),
                    PurchaseOption("apple", "Merchant3", 1, 1)]
-        problem = VendorProblem(minimumRequiredPurchase=200,
+        problem = VendorProblem(minimumRequiredPurchaseByVendor={'Merchant1': 200, 'Merchant2': 200, 'Merchant3': 200},
                                 goodQuantitiesSought={'apple': 1, 'banana': 1, 'coconut': 1, 'date': 1},
                                 purchaseOptions=options)
 
@@ -72,7 +72,7 @@ class TestBuyOptimizer(unittest.TestCase):
                    PurchaseOption("apple", "Merchant2", 4, 2),
                    PurchaseOption("apple", "Merchant3", 5, 3),
                    PurchaseOption("apple", "Merchant4", 6, 4)]
-        problem = VendorProblem(minimumRequiredPurchase=1,
+        problem = VendorProblem(minimumRequiredPurchaseByVendor={},
                                 goodQuantitiesSought={'apple': 10},
                                 purchaseOptions=options)
 
@@ -88,7 +88,7 @@ class TestBuyOptimizer(unittest.TestCase):
 
     def test_a_good_is_sought_with_no_purchase_options(self):
         options = [PurchaseOption("apple", "Merchant1", 100, 112)]
-        problem = VendorProblem(minimumRequiredPurchase=1,
+        problem = VendorProblem(minimumRequiredPurchaseByVendor={},
                                 goodQuantitiesSought={'banana': 10},
                                 purchaseOptions=options)
 
@@ -99,7 +99,7 @@ class TestBuyOptimizer(unittest.TestCase):
                    PurchaseOption("banana", "Merchant1", 100, 10),
                    PurchaseOption("apple", "Merchant2", 1, 20),
                    PurchaseOption("banana", "Merchant2", 1, 30)]
-        problem = VendorProblem(minimumRequiredPurchase=200,
+        problem = VendorProblem(minimumRequiredPurchaseByVendor={'Merchant1': 200, 'Merchant2': 200},
                                 goodQuantitiesSought={'apple': 1, 'banana': 1},
                                 purchaseOptions=options)
 
@@ -121,7 +121,10 @@ class TestBuyOptimizer(unittest.TestCase):
                             + [PurchaseOption("good17", "IrrelevantVendor", 1, 12),
                                PurchaseOption("good24", "IrrelevantVendor", 1, 1)])
         good_quantities_sought = {f"good{number}": 1 for number in range(num_goods)}
-        problem = VendorProblem(minimumRequiredPurchase=200,
+        min_required = {f"vendor{vendor_number}": 200 for vendor_number in range(num_vendors)}
+        min_required["IrrelevantVendor"] = 200
+
+        problem = VendorProblem(minimumRequiredPurchaseByVendor=min_required,
                                 goodQuantitiesSought=good_quantities_sought,
                                 purchaseOptions=purchase_options)
 
@@ -144,7 +147,7 @@ class TestBuyOptimizer(unittest.TestCase):
                    PurchaseOption(Fish("carp", 20), "Merchant2", 1, 10),
                    PurchaseOption(Fish("sunfish", 10), "Merchant2", 1, 10),
                    PurchaseOption(Fish("sunfish", 20), "Merchant2", 1, 100)]
-        problem = VendorProblem(minimumRequiredPurchase=1,
+        problem = VendorProblem(minimumRequiredPurchaseByVendor={},
                                 goodQuantitiesSought={Fish("carp", 10): 1, Fish("carp", 20): 1, Fish("sunfish", 10): 1,
                                                       Fish("sunfish", 20): 1},
                                 purchaseOptions=options)

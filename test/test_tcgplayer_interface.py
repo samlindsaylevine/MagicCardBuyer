@@ -19,13 +19,13 @@ class TestTcgPlayerInterface(unittest.TestCase):
                                         "https://shop.tcgplayer.com/productcatalog/product/getpricetable?pageSize=50"
                                         "&productId=161480&gameName=magic")])
 
-        self.assertEqual(len(purchase_options), 24)
+        self.assertEqual(len(purchase_options), 41)
         first_option = purchase_options[0]
-        # First one with free shipping in the table.
-        self.assertEqual(first_option.vendor, "MTG Rock")
-        self.assertEqual(first_option.price, 302)
-        self.assertEqual(first_option.availableQuantity, 1)
-        self.assertEqual(first_option.minimum_purchase, 200)
+        # First one in the table.
+        self.assertEqual(first_option.vendor, "Capital City Gaming")
+        self.assertEqual(first_option.price, 220)
+        self.assertEqual(first_option.availableQuantity, 3)
+        self.assertEqual(first_option.minimum_purchase, 500)
 
     @patch.object(WebpageReader, 'read')
     def test_find_options_does_not_match_on_name_substring(self, mock_read):
