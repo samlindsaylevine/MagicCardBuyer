@@ -44,7 +44,7 @@ class TestTcgPlayerInterface(unittest.TestCase):
 
     @staticmethod
     def interface():
-        interface = TcgPlayerInterface(WebpageReader(True))
+        interface = TcgPlayerInterface(WebpageReader(True), cookies=False)
         interface.verbose = False
         return interface
 

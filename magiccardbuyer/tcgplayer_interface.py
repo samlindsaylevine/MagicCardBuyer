@@ -9,6 +9,9 @@ from magiccardbuyer.buy_list_reader import Card
 from magiccardbuyer.configuration import Configuration
 from magiccardbuyer.store_interface import ExecutablePurchaseOption, StoreInterface
 from magiccardbuyer.webpage_reader import WebpageReader
+from urllib import request, parse
+
+import browser_cookie3
 
 
 class TcgPlayerInterface(StoreInterface):
@@ -20,10 +23,33 @@ class TcgPlayerInterface(StoreInterface):
 
     default_minimum_purchase = 200
 
-    def __init__(self, webpage_reader=None):
+    def __init__(self, webpage_reader=None, cookies=True):
         self.verbose = True
         self.allowedConditions = ["Near Mint", "Lightly Played"]
         self.webpage_reader = WebpageReader.from_config(Configuration()) if webpage_reader is None else webpage_reader
+        self.cookie_jar = TcgPlayerInterface._require_cookies() if cookies else None
+
+    @staticmethod
+    def _load_cookies():
+        return browser_cookie3.load(domain_name="tcgplayer.com")
+
+    @staticmethod
+    def _is_logged_in(cookie_jar):
+        opener = request.build_opener(request.HTTPCookieProcessor(cookie_jar))
+        response = opener.open("https://store.tcgplayer.com/myaccount/buyeraccount")
+        response_body = response.read().decode('utf-8')
+        if "Login to Your Account" in response_body:
+            return False
+        else:
+            return True
+
+    @staticmethod
+    def _require_cookies():
+        cookies = TcgPlayerInterface._load_cookies()
+        while not TcgPlayerInterface._is_logged_in(cookies):
+            input("You don't appear to be logged into TCG Player. Please log in with your primary browser profile.")
+            cookies = TcgPlayerInterface._load_cookies()
+        return cookies
 
     def find_options(self, card: Card) -> List[ExecutablePurchaseOption]:
         self.write(f"Finding purchase options for {card.name} from "
@@ -82,32 +108,39 @@ class TcgPlayerInterface(StoreInterface):
         html = self.webpage_reader.read(url)
         page = BeautifulSoup(html, 'html.parser')
         listings = page.find_all("div", class_="product-listing")
-        return [TcgPlayerPurchaseOption.from_node(card, listing) for listing in listings]
+        return [TcgPlayerPurchaseOption.from_node(card, listing, self.cookie_jar) for listing in listings]
 
 
 class TcgPlayerPurchaseOption(ExecutablePurchaseOption):
-    def __init__(self, card, vendor, available_quantity, price, purchase_id, condition, minimum_purchase):
+    def __init__(self, card, vendor, available_quantity, price, purchase_id, condition, minimum_purchase, cookie_jar):
         self.good = card
         self.vendor = vendor
         self.availableQuantity = available_quantity
         self.price = price
         self.purchase_id = purchase_id
-        # TODO - base off purchase ID, see what happens when we purchase
-        self.purchase = lambda quantity: print(f"Buying {quantity} {card.name} from {vendor} at {self.price}")
+        self.purchase = lambda quantity: self._purchase(quantity)
         self.condition = condition
         self.minimum_purchase = minimum_purchase
+        self.cookie_jar = cookie_jar
 
     def key(self):
         return self.purchase_id
 
     @classmethod
-    def from_node(cls, card: Card, soup_node):
+    def from_node(cls, card: Card, soup_node, cookie_jar):
         vendor = soup_node.find("a", class_="seller__name").string.strip()
         available_quantity = int(soup_node.find(id="quantityAvailable").get("value"))
         (price, minimumPurchase) = TcgPlayerPurchaseOption._price_and_minimum(soup_node)
         purchase_id = soup_node.find(id="priceId").get("value")
         condition = soup_node.find(class_="condition").string.strip()
-        return TcgPlayerPurchaseOption(card, vendor, available_quantity, price, purchase_id, condition, minimumPurchase)
+        return TcgPlayerPurchaseOption(card,
+                                       vendor,
+                                       available_quantity,
+                                       price,
+                                       purchase_id,
+                                       condition,
+                                       minimumPurchase,
+                                       cookie_jar)
 
     @classmethod
     def _price_and_minimum(cls, soup_node):
@@ -143,6 +176,14 @@ class TcgPlayerPurchaseOption(ExecutablePurchaseOption):
         if minimum_str.startswith(orders_over):
             return int(minimum_str[len(orders_over):]) * 100
         raise TcgPlayerError(f"Couldn't parse minimum purchase {minimum_str}")
+
+    def _purchase(self, quantity):
+        form = {"quantityToBuy": str(int(quantity)),
+                "priceId": self.purchase_id}
+        data = parse.urlencode(form).encode()
+        req = request.Request("https://shop.tcgplayer.com/shoppingcart/additem", data=data)
+        opener = request.build_opener(request.HTTPCookieProcessor(self.cookie_jar))
+        opener.open(req)
 
 
 class TcgPlayerError(Exception):
