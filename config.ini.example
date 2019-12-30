@@ -7,7 +7,3 @@ MaximumPrice = 200
 # If True, caches results of price lookups between runs (in case a run is
 # interrupted partway through) or you otherwise want to reuse information.
 Cache = False
-
-[TcgPlayer]
-Username = my.username
-Password = my.password
