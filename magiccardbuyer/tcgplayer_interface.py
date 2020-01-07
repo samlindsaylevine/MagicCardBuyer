@@ -26,7 +26,8 @@ class TcgPlayerInterface(StoreInterface):
     def __init__(self, webpage_reader=None, cookies=True):
         self.verbose = True
         self.allowedConditions = ["Near Mint", "Lightly Played"]
-        self.webpage_reader = WebpageReader.from_config(Configuration()) if webpage_reader is None else webpage_reader
+        self.configuration = Configuration()
+        self.webpage_reader = WebpageReader.from_config(self.configuration) if webpage_reader is None else webpage_reader
         self.cookie_jar = self._require_cookies() if cookies else None
 
     def _load_cookies(self):
@@ -108,7 +109,8 @@ class TcgPlayerInterface(StoreInterface):
         html = self.webpage_reader.read(url)
         page = BeautifulSoup(html, 'html.parser')
         listings = page.find_all("div", class_="product-listing")
-        return [TcgPlayerPurchaseOption.from_node(card, listing, self.cookie_jar) for listing in listings]
+        options = [TcgPlayerPurchaseOption.from_node(card, listing, self.cookie_jar) for listing in listings]
+        return [option for option in options if option.vendor not in self.configuration.vendor_blacklist]
 
 
 class TcgPlayerPurchaseOption(ExecutablePurchaseOption):
