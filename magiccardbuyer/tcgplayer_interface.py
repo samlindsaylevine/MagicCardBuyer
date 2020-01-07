@@ -27,15 +27,15 @@ class TcgPlayerInterface(StoreInterface):
         self.verbose = True
         self.allowedConditions = ["Near Mint", "Lightly Played"]
         self.webpage_reader = WebpageReader.from_config(Configuration()) if webpage_reader is None else webpage_reader
-        self.cookie_jar = TcgPlayerInterface._require_cookies() if cookies else None
+        self.cookie_jar = self._require_cookies() if cookies else None
 
-    @staticmethod
-    def _load_cookies():
+    def _load_cookies(self):
+        self.write("Loading cookies...\n")
         return browser_cookie3.load(domain_name="tcgplayer.com")
 
-    @staticmethod
-    def _is_logged_in(cookie_jar):
+    def _is_logged_in(self, cookie_jar):
         opener = request.build_opener(request.HTTPCookieProcessor(cookie_jar))
+        self.write("Checking to see if logged in to TCG Player...\n")
         response = opener.open("https://store.tcgplayer.com/myaccount/buyeraccount")
         response_body = response.read().decode('utf-8')
         if "Login to Your Account" in response_body:
@@ -43,12 +43,12 @@ class TcgPlayerInterface(StoreInterface):
         else:
             return True
 
-    @staticmethod
-    def _require_cookies():
-        cookies = TcgPlayerInterface._load_cookies()
-        while not TcgPlayerInterface._is_logged_in(cookies):
-            input("You don't appear to be logged into TCG Player. Please log in with your primary browser profile.")
-            cookies = TcgPlayerInterface._load_cookies()
+    def _require_cookies(self):
+        cookies = self._load_cookies()
+        if not self._is_logged_in(cookies):
+            self.write("You don't appear to be logged into TCG Player. Please log in with your primary browser "
+                       "profile.\n")
+            raise RuntimeError("Not logged into TCG Player")
         return cookies
 
     def find_options(self, card: Card) -> List[ExecutablePurchaseOption]:
@@ -183,7 +183,10 @@ class TcgPlayerPurchaseOption(ExecutablePurchaseOption):
         data = parse.urlencode(form).encode()
         req = request.Request("https://shop.tcgplayer.com/shoppingcart/additem", data=data)
         opener = request.build_opener(request.HTTPCookieProcessor(self.cookie_jar))
-        opener.open(req)
+        response = opener.open(req)
+        response_body = response.read().decode('utf-8')
+        if "Sign In" in response_body:
+            raise RuntimeError("Failed to add purchase to signed-in shopping cart")
 
 
 class TcgPlayerError(Exception):

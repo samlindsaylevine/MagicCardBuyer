@@ -15,7 +15,7 @@ in order to linearize the minimum threshold requirement.)
 
 We use Google's OR Tools library to solve the MILP problem once we have expressed it.
 """
-
+import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, TypeVar, Callable
@@ -97,27 +97,36 @@ class UnsolvableError(Exception):
 
 class BuyOptimizer:
     def __init__(self):
+        self.verbose = True
         # This large number is used to enforce the "buy flag". If you're ever trying to buy
         # more total goods than this, the optimizer will break down.
         self.LARGE_NUM = 1000000
+
+    def write(self, message):
+        if self.verbose:
+            sys.stderr.write(message)
 
     def solve(self, problem: VendorProblem) -> VendorSolution:
         solver = pywraplp.Solver('SolveIntegerProblem',
                                  pywraplp.Solver.CBC_MIXED_INTEGER_PROGRAMMING)
 
+        self.write("Initializing quantity variables...\n")
         # A list of (variable, option) pairs.
         quantity_variables = [(solver.IntVar(0, option.availableQuantity, f"{option.key()}_quantity"),
-                              option) for option in problem.purchaseOptions]
+                               option) for option in problem.purchaseOptions]
 
+        self.write("Grouping quantity variables...\n")
         variables_by_good = group_to_dict(quantity_variables, lambda v: v[1].good)
         variables_by_vendor = group_to_dict(quantity_variables, lambda v: v[1].vendor)
 
         # We define a variable for each vendor that is whether we are purchasing anything for that vendor: the
         # "buy flag". The existence of this flag lets us use the "hacky" constraints below to maintain linearity
         # of the problem.
+        self.write("Initializing buy flags...\n")
         buy_flags_by_vendor = {vendor: solver.IntVar(0, 1, f"buyFlag_{vendor}")
                                for vendor in variables_by_vendor.keys()}
 
+        self.write("Defining amount constraints...\n")
         # We need the desired amount of each good.
         for (good, quantity) in problem.goodQuantitiesSought.items():
             desired_amount = solver.Constraint(quantity, quantity)
@@ -126,6 +135,7 @@ class BuyOptimizer:
             for (variable, option) in variables_by_good[good]:
                 desired_amount.SetCoefficient(variable, 1)
 
+        self.write("Defining buy flag constraints...\n")
         # Don't buy anything from a merchant unless its flag is set.
         # (quantity1 + quantity2 + ....) - (LARGE_NUM) * buyFlag <= 0
         # This constraint is a bit of a hack in order to maintain the linearity of the problem. We pick an arbitrarily
@@ -136,6 +146,7 @@ class BuyOptimizer:
             for variable in variables_by_vendor[vendor]:
                 buy_anything.SetCoefficient(variable[0], 1)
 
+        self.write("Defining minimum spend constraints...\n")
         # If we do buy anything from a merchant, we need to spend at least the minimum amount.
         # (MINIMUM_SPEND) * buyFlag - quantity1 * cost1 - quantity2 * cost2 - ... <= 0
         # Here is where the buyFlag lets us maintain linearity.
@@ -147,12 +158,15 @@ class BuyOptimizer:
                 for variable in variables_by_vendor[vendor]:
                     minimum_spend.SetCoefficient(variable[0], -variable[1].price)
 
+        self.write("Defining objective...\n")
         total_cost = solver.Objective()
         for variable in quantity_variables:
             total_cost.SetCoefficient(variable[0], variable[1].price)
         total_cost.SetMinimization()
 
+        self.write(f"Solving for {len(quantity_variables) + len(buy_flags_by_vendor)} variables...\n")
         result_status = solver.Solve()
+        self.write("Solved.\n")
         if result_status != pywraplp.Solver.OPTIMAL:
             raise UnsolvableError(f"Vendor problem was not mathematically solveable; returned status {result_status}")
 
@@ -160,6 +174,6 @@ class BuyOptimizer:
             raise UnsolvableError("Solution could not be verified as legitimate")
 
         purchases_to_make = [PurchaseToMake(variable[0].solution_value(), variable[1])
-                           for variable in quantity_variables if variable[0].solution_value() > 0]
+                             for variable in quantity_variables if variable[0].solution_value() > 0]
         total_cost = solver.Objective().Value()
         return VendorSolution(purchases_to_make, total_cost)

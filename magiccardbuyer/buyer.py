@@ -18,6 +18,7 @@ class MagicCardBuyer:
     def write(self, message):
         if self.verbose:
             sys.stderr.write(message)
+            sys.stderr.flush()
 
     def buy(self, input_stream=sys.stdin):
         reader = BuyListReader()
@@ -54,14 +55,22 @@ class MagicCardBuyer:
                                       and option.minimum_purchase is not None])
                          for vendor in vendors}
 
-        self.write("Optimizing purchase options...\n")
+        self.write("Defining purchase problem...\n")
         problem = VendorProblem(dict(cards_sought), options, min_by_vendor)
+        self.write("Optimizing purchase options...\n")
         solution = BuyOptimizer().solve(problem)
         self.write(f"Solved; total cost {solution.totalCost}\n")
 
-        self.write("Executing purchases...\n")
+        self.write("Executing " + str(len(solution.purchasesToMake)) + " purchases...\n")
+        purchased_count = 0
         for purchaseToMake in solution.purchasesToMake:
             purchaseToMake.option.purchase(purchaseToMake.quantity)
+            purchased_count += 1
+            if purchased_count % 10 == 0:
+                self.write("[" + str(purchased_count) + "]")
+            else:
+                self.write(".")
+        self.write("\n")
 
         # Output anything that was too expensive.
         if len(too_expensive) > 0:
