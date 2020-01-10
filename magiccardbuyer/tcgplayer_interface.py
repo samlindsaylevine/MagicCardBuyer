@@ -23,11 +23,12 @@ class TcgPlayerInterface(StoreInterface):
 
     default_minimum_purchase = 200
 
-    def __init__(self, webpage_reader=None, cookies=True):
+    def __init__(self, webpage_reader=None, cookies=True, configuration=None):
         self.verbose = True
         self.allowedConditions = ["Near Mint", "Lightly Played"]
-        self.configuration = Configuration()
-        self.webpage_reader = WebpageReader.from_config(self.configuration) if webpage_reader is None else webpage_reader
+        self.configuration = Configuration.from_file() if configuration is None else configuration
+        self.webpage_reader = WebpageReader.from_config(self.configuration) if webpage_reader is None \
+            else webpage_reader
         self.cookie_jar = self._require_cookies() if cookies else None
 
     def _load_cookies(self):

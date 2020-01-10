@@ -8,4 +8,4 @@ MaximumPrice = 200
 # interrupted partway through) or you otherwise want to reuse information.
 Cache = False
 # Do not make purchases from these vendors.
-VendorBlacklist = TomeNDie
+VendorBlacklist = TomeNDie,Muñoz Distributions,Nivix

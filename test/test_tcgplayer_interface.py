@@ -28,6 +28,18 @@ class TestTcgPlayerInterface(unittest.TestCase):
         self.assertEqual(first_option.minimum_purchase, 500)
 
     @patch.object(WebpageReader, 'read')
+    def test_find_options_blacklisting_vendor(self, mock_read):
+        bolt = Card(name="Lightning Bolt", setName="Masters 25")
+        mock_read.side_effect = [self.file_contents("test/webpages/mm25boltsearch.html"),
+                                 self.file_contents("test/webpages/mm25boltpricetable.html")]
+
+        purchase_options = self.interface(blacklist=["Capital City Gaming"]).find_options(bolt)
+
+        self.assertEqual(len(purchase_options), 40)
+        first_option = purchase_options[0]
+        self.assertNotEqual(first_option.vendor, "Capital City Gaming")
+
+    @patch.object(WebpageReader, 'read')
     def test_find_options_does_not_match_on_name_substring(self, mock_read):
         light = Card(name="Light", setName="Masters 25")
         mock_read.side_effect = [self.file_contents("test/webpages/mm25boltsearch.html"),
@@ -43,8 +55,11 @@ class TestTcgPlayerInterface(unittest.TestCase):
             return file.read()
 
     @staticmethod
-    def interface():
-        interface = TcgPlayerInterface(WebpageReader(True), cookies=False)
+    def interface(blacklist=None):
+        if blacklist is None:
+            blacklist = []
+        config = Configuration(None, False, blacklist)
+        interface = TcgPlayerInterface(WebpageReader(True), cookies=False, configuration=config)
         interface.verbose = False
         return interface
 
