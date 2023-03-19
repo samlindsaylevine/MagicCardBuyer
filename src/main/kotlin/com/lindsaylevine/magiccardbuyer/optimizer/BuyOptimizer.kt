@@ -1,8 +1,8 @@
 package com.lindsaylevine.magiccardbuyer.optimizer
 
-import org.chocosolver.solver.Model
-import org.chocosolver.solver.Solution
-import org.chocosolver.solver.variables.IntVar
+import com.google.ortools.Loader
+import com.google.ortools.linearsolver.MPSolver
+import com.google.ortools.linearsolver.MPVariable
 
 /**
  * Optimizer to solve the cheapest solution for buying goods from vendors.
@@ -29,14 +29,18 @@ class BuyOptimizer {
          * This large number is used to enforce the "buy flag". If you're ever trying to buy
          * more total goods than this, the optimizer will break down.
          */
-        private const val LARGE_NUMBER = 1_000_000
+        private const val LARGE_NUMBER = 1_000_000.0
+    }
+
+    init {
+        Loader.loadNativeLibraries()
     }
 
     fun <T> solve(problem: VendorProblem<T>): VendorSolution<T> {
-        val model = Model()
+        val solver = MPSolver.createSolver(MPSolver.OptimizationProblemType.CBC_MIXED_INTEGER_PROGRAMMING.name)
 
         val variablesForOptions = problem.purchaseOptions.map { option ->
-            val variable = model.intVar(0, option.availableQuantity)
+            val variable = solver.makeIntVar(0.0, option.availableQuantity.toDouble(), option.key)
             VariableAndOption(variable, option)
         }
 
@@ -46,76 +50,58 @@ class BuyOptimizer {
         //We define a variable for each vendor that is whether we are purchasing anything for that vendor: the
         // "buy flag". The existence of this flag lets us use the "hacky" constraints below to maintain linearity
         // of the problem.
-        val buyFlagsByVendor: Map<String, IntVar> = variablesByVendor.keys.associate { vendorName ->
-            vendorName to model.intVar(0, 1)
-        }
+        val buyFlagsByVendor: Map<String, MPVariable> =
+            variablesByVendor.keys.associateWith { vendorName -> solver.makeIntVar(0.0, 1.0, "buy_flag_$vendorName") }
 
         // We need the desired amount of each good.
         problem.goodQuantitiesSought.forEach { (good, quantity) ->
             val variables = variablesByGood[good] ?: throw UnsolvableException("Desire $good but it is unavailable")
-            val coefficients = variables.map { 1 }.toIntArray()
-            model.scalar(variables.map { it.variable }.toTypedArray(),
-                    coefficients,
-                    "=",
-                    quantity)
-                    .post()
+            val totalAmountConstraint = solver.makeConstraint(quantity.toDouble(), quantity.toDouble())
+            variables.forEach { totalAmountConstraint.setCoefficient(it.variable, 1.0) }
         }
 
         variablesByVendor.forEach { (vendorName, variables) ->
-            val buyFlag: IntVar = buyFlagsByVendor[vendorName]
+            val buyFlag: MPVariable = buyFlagsByVendor[vendorName]
                     ?: throw IllegalStateException("Missing buy flag for $vendorName")
 
-            val vendorVars = variables.map { it.variable }.toList()
+            val vendorVars = variables.map { it.variable }
 
             // Don't buy anything from a merchant unless its flag is set.
             // (quantity1 + quantity2 + ....) - (LARGE_NUM) * buyFlag <= 0
             // This constraint is a bit of a hack in order to maintain the linearity of the problem. We pick an arbitrarily
             // large coefficient on the buy flag.
-            model.scalar(vendorVars.plusElement(buyFlag).toTypedArray(),
-                    (variables.map { 1 } + (-LARGE_NUMBER)).toIntArray(),
-                    "<=",
-                    0)
-                    .post()
+            val buyAnything = solver.makeConstraint(-MPSolver.infinity(), 0.0)
+            buyAnything.setCoefficient(buyFlag, -LARGE_NUMBER)
+            vendorVars.forEach { buyAnything.setCoefficient(it, 1.0) }
 
             // If we do buy anything from a merchant, we need to spend at least the minimum amount.
             // quantity1 * cost 1 + quantity2 * cost 2 + .... - MINIMUM_SPEND * buyFlag >= 0
             // Here is where the buyFlag lets us maintain linearity.
-            model.scalar(vendorVars.plusElement(buyFlag).toTypedArray(),
-                    (variables.map { it.option.price } + (-problem.minimumRequiredPurchase)).toIntArray(),
-                    ">=",
-                    0)
-                    .post()
+            val minimumSpend = solver.makeConstraint(-MPSolver.infinity(), 0.0)
+            minimumSpend.setCoefficient(buyFlag, problem.minimumRequiredPurchase.toDouble())
+            variables.forEach { minimumSpend.setCoefficient(it.variable,-it.option.price.toDouble()) }
         }
 
-        val totalCost = model.intVar(0, IntVar.MAX_INT_BOUND)
-        model.scalar(variablesForOptions.map { it.variable }.toTypedArray(),
-                variablesForOptions.map { it.option.price }.toIntArray(),
-                "=",
-                totalCost)
-                .post()
+        val totalCost = solver.objective()
+        variablesForOptions.forEach { (variable, option) ->
+            totalCost.setCoefficient(variable, option.price.toDouble())
+        }
+        totalCost.setMinimization()
 
-        model.setObjective(Model.MINIMIZE, totalCost)
+        val resultStatus = solver.solve()
 
-        val solution = Solution(model)
-        var anySolutionFound = false
-
-        // Each solution advances another step towards the optimization - we should be at the
-        // most optimal when there is not another solution.
-        model.solver.limitTime(10_000)
-
-        while (model.solver.solve()) {
-            solution.record()
-            anySolutionFound = true
+        if (resultStatus != MPSolver.ResultStatus.OPTIMAL) {
+            throw UnsolvableException("Vendor problem was not mathematically solveable; returned status $resultStatus")
         }
 
-        if (!anySolutionFound) {
-            throw UnsolvableException("No solution could be found")
+        if (!solver.verifySolution(1e-7, true)) {
+            throw UnsolvableException("Solution could not be verified as legitimate")
         }
 
-        val purchasesToMake = variablesForOptions.filter { solution.getIntVal(it.variable) > 0 }
-                .map { PurchaseToMake(solution.getIntVal(it.variable), it.option) }
+        val purchasesToMake = variablesForOptions.filter { it.variable.solutionValue() >0 }
+                .map { PurchaseToMake(it.variable.solutionValue().toInt(), it.option) }
         return VendorSolution(purchasesToMake)
     }
 }
 
-private data class VariableAndOption<T>(val variable: IntVar, val option: PurchaseOption<T>)
+private data class VariableAndOption<T>(val variable: MPVariable, val option: PurchaseOption<T>)

@@ -5,6 +5,7 @@ plugins {
 
 repositories {
     jcenter()
+    mavenCentral()
 }
 
 dependencies {
@@ -13,9 +14,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 
     // Google's OR Tools for solving optimization problems in linear programming.
-    // Olivier Callioux published them to Maven on behalf of the Google team (with approval).
-    implementation("io.github.oliviercailloux:google-or-tools:6.7.2")
-    implementation("org.choco-solver:choco-solver:4.0.0")
+    implementation("com.google.ortools:ortools-java:9.6.2534")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
