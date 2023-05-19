@@ -4,7 +4,8 @@ package com.lindsaylevine.magiccardbuyer.optimizer
  * A single option for purchasing a particular good from a particular vendor.
  *
  * Goods can be basically anything but must have a consistent string representation and equals. (A data class is fine.
- * So is a string.)
+ * So is a string.) Note that the PurchaseOption *itself* does not have these requirements; they are uniquely defined
+ * by their [key].
  *
  * Vendors are correlated by their string name.
  *
