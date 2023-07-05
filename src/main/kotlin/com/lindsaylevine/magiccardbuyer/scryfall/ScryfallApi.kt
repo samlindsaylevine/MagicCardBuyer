@@ -15,11 +15,14 @@ class ScryfallApi {
     private val mapper = jacksonObjectMapper()
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
+    /**
+     * [rarities] As recognized by Scryfall, e.g., 'c', 'u', 'r', 'm'
+     */
     fun cards(setName: String, rarities: List<String>?): List<Card> {
         val setCode = setCode(setName)
         val rareParameter = rarities?.joinToString(separator = " or ", prefix = "(", postfix = ")") { "r:$it" }
             ?: ""
-        val searchString = "set:$setCode not:pwdeck -t:basic $rareParameter"
+        val searchString = "set:$setCode not:pwdeck is:booster -t:basic $rareParameter"
         val encoded = URLEncoder.encode(searchString, StandardCharsets.UTF_8)
         val searchUrl = "https://api.scryfall.com/cards/search?q=$encoded"
         val searchResponse = get(searchUrl, SearchResponse::class.java)
@@ -48,3 +51,13 @@ private data class SetResponse(val name: String, val code: String)
 private data class SearchResponse(val data: List<CardResponse>)
 
 private data class CardResponse(val name: String)
+
+fun main() {
+    val scryfall = ScryfallApi()
+
+    val cards = scryfall.cards("Theros Beyond Death", listOf("c"))
+
+    cards.map { it.name }.sorted().forEach (::println)
+
+    println(cards.size)
+}

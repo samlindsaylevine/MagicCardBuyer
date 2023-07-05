@@ -16,6 +16,9 @@ dependencies {
     // Google's OR Tools for solving optimization problems in linear programming.
     implementation("com.google.ortools:ortools-java:9.6.2534")
 
+    // Getting browser cookies to be able to add items to a shopping cart.
+    implementation(files("lib/CookieMonster.jar"))
+
     // JSON.
     implementation("com.fasterxml.jackson.core:jackson-databind:2.14.2")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.14.2")

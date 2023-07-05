@@ -7,7 +7,7 @@ The problem statement is that we have a list of named cards for the hobby game M
 
 Beyond being a helpful tool for a hobby, this also turned out to be a somewhat interesting and not immediately obvious computer science problem. With a little cleverness, it could be reduced to an optimization problem in mixed-integer linear programming. See `buy_optimizer.py` for more details. We're using the Google OR Tools library to perform the mathematics of this optimization problem.
 
-If you're building a practice deck, you can also define a maximum cost you are willing to pay, and then get the output of all the cards that are "too expensive" on standard out. Then you can make proxies to playtest with until you are ready to buy the real cards. This repo used to have a proxies.py script; it was based on magiccards.info which has since gone under. Furthermore, since it built an HTML page, it had a problem with scaling differently on different printers. Consider using other existing utilities such as http://magiccardprices.info/PlaytestUtility or http://www.mtgpress.net/ to generate PDFs with card images.
+If you're building a practice deck, you can also define a maximum cost you are willing to pay, and then get the output of all the cards that are "too expensive" on standard out. Then you can make proxies to playtest with until you are ready to buy the real cards. This repo used to have a proxies.py script; it was based on magiccards.info which has since gone under. Furthermore, since it built an HTML page, it had a problem with scaling differently on different printers. Consider using other existing utilities such as https://mtgprint.net/ to generate PDFs with card images.
 
 To run the tool:
 * Python 3.7 or later is required.
