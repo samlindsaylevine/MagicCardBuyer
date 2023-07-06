@@ -22,3 +22,9 @@ webpage_cache
 **/out/**
 *.ipr
 *.iws
+
+# Cookies
+.cookies.db
+
+# Output
+tooExpensive

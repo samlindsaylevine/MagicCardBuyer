@@ -19,6 +19,9 @@ interface PurchaseOption<T> {
 
     // This must uniquely define this option, separating it from any other option being considered.
     val key: String
+
+    // If desired, these options can be executable.
+    fun purchase(quantity: Int) = Unit
 }
 
 /**
@@ -26,10 +29,12 @@ interface PurchaseOption<T> {
  *
  * Assumes that each vendor has only one option for each good (i.e., that we can use "vendor,good" as a unique key).
  */
-data class SimplePurchaseOption<T>(override val good: T,
-                                   override val vendorName: String,
-                                   override val availableQuantity: Int,
-                                   override val price: Int) : PurchaseOption<T> {
+data class SimplePurchaseOption<T>(
+    override val good: T,
+    override val vendorName: String,
+    override val availableQuantity: Int,
+    override val price: Int
+) : PurchaseOption<T> {
     override val key: String
         get() = "${vendorName}_$good"
 }

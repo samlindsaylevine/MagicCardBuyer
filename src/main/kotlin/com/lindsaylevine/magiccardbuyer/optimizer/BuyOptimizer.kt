@@ -62,7 +62,7 @@ class BuyOptimizer {
 
         variablesByVendor.forEach { (vendorName, variables) ->
             val buyFlag: MPVariable = buyFlagsByVendor[vendorName]
-                    ?: throw IllegalStateException("Missing buy flag for $vendorName")
+                ?: throw IllegalStateException("Missing buy flag for $vendorName")
 
             val vendorVars = variables.map { it.variable }
 
@@ -74,20 +74,26 @@ class BuyOptimizer {
             buyAnything.setCoefficient(buyFlag, -LARGE_NUMBER)
             vendorVars.forEach { buyAnything.setCoefficient(it, 1.0) }
 
-            // If we do buy anything from a merchant, we need to spend at least the minimum amount.
-            // quantity1 * cost 1 + quantity2 * cost 2 + .... - MINIMUM_SPEND * buyFlag >= 0
-            // Here is where the buyFlag lets us maintain linearity.
-            val minimumSpend = solver.makeConstraint(-MPSolver.infinity(), 0.0)
-            minimumSpend.setCoefficient(buyFlag, problem.minimumRequiredPurchase.toDouble())
-            variables.forEach { minimumSpend.setCoefficient(it.variable,-it.option.price.toDouble()) }
+            if (problem.minimumRequiredPurchase > 0) {
+                // If we do buy anything from a merchant, we need to spend at least the minimum amount.
+                // quantity1 * cost 1 + quantity2 * cost 2 + .... - MINIMUM_SPEND * buyFlag >= 0
+                // Here is where the buyFlag lets us maintain linearity.
+                val minimumSpend = solver.makeConstraint(-MPSolver.infinity(), 0.0)
+                minimumSpend.setCoefficient(buyFlag, problem.minimumRequiredPurchase.toDouble())
+                variables.forEach { minimumSpend.setCoefficient(it.variable, -it.option.price.toDouble()) }
+            }
         }
 
         val totalCost = solver.objective()
         variablesForOptions.forEach { (variable, option) ->
             totalCost.setCoefficient(variable, option.price.toDouble())
         }
+        if (problem.costPerVendor > 0) {
+            buyFlagsByVendor.values.forEach { totalCost.setCoefficient(it, problem.costPerVendor.toDouble()) }
+        }
         totalCost.setMinimization()
 
+        println("Solving for ${solver.variables().size} variables...")
         val resultStatus = solver.solve()
 
         if (resultStatus != MPSolver.ResultStatus.OPTIMAL) {
@@ -98,8 +104,8 @@ class BuyOptimizer {
             throw UnsolvableException("Solution could not be verified as legitimate")
         }
 
-        val purchasesToMake = variablesForOptions.filter { it.variable.solutionValue() >0 }
-                .map { PurchaseToMake(it.variable.solutionValue().toInt(), it.option) }
+        val purchasesToMake = variablesForOptions.filter { it.variable.solutionValue() > 0 }
+            .map { PurchaseToMake(it.variable.solutionValue().toInt(), it.option) }
         return VendorSolution(purchasesToMake)
     }
 }

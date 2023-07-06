@@ -19,7 +19,7 @@ import java.nio.charset.StandardCharsets
  */
 class TcgPlayerApi {
     companion object {
-        const val MAX_STORES_PER_CARD = 30
+        const val MAX_STORES_PER_CARD = 20
     }
 
     private val cookies: Set<Cookie> = run {
@@ -189,7 +189,7 @@ class TcgPlayerPurchaseOption(
     /**
      * Execute this option, adding the provided amount of this card to the shopping cart.
      */
-    fun purchase(quantity: Int) {
+    override fun purchase(quantity: Int) {
         val request = PurchaseRequest(
             sku = listingResult.productConditionId,
             sellerKey = listingResult.sellerKey,
