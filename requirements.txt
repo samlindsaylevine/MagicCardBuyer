@@ -1,3 +1,0 @@
-ortools
-beautifulsoup4
-browser-cookie3

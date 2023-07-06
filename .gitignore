@@ -1,3 +1,30 @@
+# Ignore Gradle project-specific cache directory
+.gradle
+
+# Ignore Gradle build output directory
+build
+
+# Python output
 *.pyc
+
+# User-modified config change
 config.ini
+
+# Cached webpage loads
 webpage_cache
+
+# IntelliJ ignores
+.idea/*
+!.idea/codeStyles/
+**/.idea/*
+!**/.idea/codeStyles/
+*.iml
+**/out/**
+*.ipr
+*.iws
+
+# Cookies
+.cookies.db
+
+# Output
+tooExpensive
