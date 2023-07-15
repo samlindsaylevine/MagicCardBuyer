@@ -21,11 +21,13 @@ class MagicCardBuyer {
 
     private fun toPurchase(): List<Pair<Card, Int>> {
         val missing = listOf(
-            Card("Mantle of the Wolf", "Theros Beyond Death") to 1,
-            Card("Witness of Tomorrows", "Theros Beyond Death") to 6
+                Card("Thornwood Falls", "Ikoria: Lair of Behemoths") to 3,
+                Card("Spelleater Wolverine", "Ikoria: Lair of Behemoths") to 5
         )
 
-        return missing + DraftSet("Ikoria: Lair of Behemoths").cards()
+        return missing +
+                DraftSet("Zendikar Rising").cards() +
+                DraftSet("Commander Legends").cards()
     }
 
     fun execute() {
@@ -33,11 +35,11 @@ class MagicCardBuyer {
 
         println("Finding purchase options...")
         val allCardPurchaseOptions: List<CardPurchaseOptions> =
-            toPurchase.map { (card, quantitySought) -> cardPurchaseOptions(card, quantitySought) }
+                toPurchase.map { (card, quantitySought) -> cardPurchaseOptions(card, quantitySought) }
 
         println("Eliminating too-expensive...")
         val (tooExpensive, purchasable) = allCardPurchaseOptions
-            .partition { cardOptions -> cardOptions.options.minOf { it.price } > MAX_PRICE }
+                .partition { cardOptions -> cardOptions.options.minOf { it.price } > MAX_PRICE }
         File("tooExpensive").printWriter().use { out ->
             tooExpensive.forEach { out.println(it.card.name) }
         }
@@ -56,9 +58,9 @@ class MagicCardBuyer {
     private fun cardPurchaseOptions(card: Card, quantitySought: Int): CardPurchaseOptions {
         println("Finding purchase options for ${card.name}...")
         return CardPurchaseOptions(
-            card,
-            quantitySought,
-            tcgPlayerApi.purchaseOptions(card)
+                card,
+                quantitySought,
+                tcgPlayerApi.purchaseOptions(card)
         )
     }
 
@@ -67,17 +69,17 @@ class MagicCardBuyer {
         val allPurchaseOptions = cardPurchaseOptions.flatMap { it.options }
 
         return VendorProblem(
-            goodQuantitiesSought = sought,
-            purchaseOptions = allPurchaseOptions,
-            minimumRequiredPurchase = MINIMUM_PURCHASE_PER_VENDOR,
-            costPerVendor = COST_PER_VENDOR
+                goodQuantitiesSought = sought,
+                purchaseOptions = allPurchaseOptions,
+                minimumRequiredPurchase = MINIMUM_PURCHASE_PER_VENDOR,
+                costPerVendor = COST_PER_VENDOR
         )
     }
 
     data class CardPurchaseOptions(
-        val card: Card,
-        val quantitySought: Int,
-        val options: List<PurchaseOption<Card>>
+            val card: Card,
+            val quantitySought: Int,
+            val options: List<PurchaseOption<Card>>
     )
 
 }
