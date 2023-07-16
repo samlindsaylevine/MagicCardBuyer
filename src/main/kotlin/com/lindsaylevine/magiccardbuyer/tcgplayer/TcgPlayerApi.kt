@@ -15,7 +15,8 @@ import java.nio.charset.StandardCharsets
 
 /**
  * TCG Player used to have a public API, but is no longer granting new access. (It required sign-up and human approval.)
- * So, instead it is just HTML scraping ahoy. I guess that's the public, unauthenticated interface...
+ * So, instead we are just looking at requests made through the UI (via browser dev tools) and mimicking those.
+ * I guess that's the public, unauthenticated interface...
  */
 class TcgPlayerApi {
     companion object {
@@ -38,11 +39,11 @@ class TcgPlayerApi {
         }
         val cookieHandler = CookieManager()
         cookies.map { it.toHttpCookie() }
-            .forEach { cookieHandler.cookieStore.add(URI("https://tcgplayer.com"), it) }
+                .forEach { cookieHandler.cookieStore.add(URI("https://tcgplayer.com"), it) }
 
         HttpClient.newBuilder()
-            .cookieHandler(cookieHandler)
-            .build()
+                .cookieHandler(cookieHandler)
+                .build()
     }
 
     private val mapper = jacksonObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
@@ -58,22 +59,30 @@ class TcgPlayerApi {
     }
 
     private fun search(card: Card): SearchResult? {
-        val encoded = URLEncoder.encode(card.name.lowercase(), StandardCharsets.UTF_8)
+        // For double-faced cards just take the first part of the name.
+        val searchName = card.name.substringBefore(" //").lowercase()
+        val encoded = URLEncoder.encode(searchName.lowercase(), StandardCharsets.UTF_8)
         val searchUrl = "https://mp-search-api.tcgplayer.com/v1/search/request?q=$encoded&isList=false"
         // Taken from a request in browser.
         val requestBody =
-            """{"algorithm":"sales_exp_fields_experiment","from":0,"size":24,"filters":{"term":{},"range":{},"match":{}},"listingSearch":{"context":{"cart":{}},"filters":{"term":{"sellerStatus":"Live","channelId":0},"range":{"quantity":{"gte":1}},"exclude":{"channelExclusion":0}}},"context":{"cart":{},"shippingCountry":"US"},"settings":{"useFuzzySearch":false,"didYouMean":{}},"sort":{}}"""
+                """{"algorithm":"sales_exp_fields_experiment","from":0,"size":100,"filters":{"term":{},"range":{},"match":{}},"listingSearch":{"context":{"cart":{}},"filters":{"term":{"sellerStatus":"Live","channelId":0},"range":{"quantity":{"gte":1}},"exclude":{"channelExclusion":0}}},"context":{"cart":{},"shippingCountry":"US"},"settings":{"useFuzzySearch":false,"didYouMean":{}},"sort":{}}"""
         val request = HttpRequest.newBuilder()
-            .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-            .uri(URI.create(searchUrl))
-            .header("Content-Type", "application/json")
-            .build()
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .uri(URI.create(searchUrl))
+                .header("Content-Type", "application/json")
+                .build()
         val response = client.send(request, HttpResponse.BodyHandlers.ofString())
         if (response.statusCode() != HttpURLConnection.HTTP_OK) {
             throw IllegalStateException("Bad status ${response.statusCode()} on search response for ${card.name}; body ${response.body()}")
         }
         val apiResponse: ApiResponse<SearchResults> = mapper.readValue(response.body())
-        return apiResponse.results.first().results.firstOrNull { it.productName == card.name && it.setName == card.set }
+        return apiResponse.results.first().results.firstOrNull { it.productName.matchesOriginalCardName(searchName) && it.setName == card.set }
+    }
+
+    private fun String.matchesOriginalCardName(originalCardName: String): Boolean {
+        // Sometimes there are multiple hits with different art; we'll just take the first.
+        val parensIgnored = this.substringBefore(" (")
+        return parensIgnored.equals(originalCardName, ignoreCase = true)
     }
 
     private fun listings(productId: Int, card: Card): List<ListingResult> {
@@ -117,10 +126,10 @@ class TcgPlayerApi {
             }
         """.trimIndent()
         val request = HttpRequest.newBuilder()
-            .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-            .uri(URI.create(listingsUrl))
-            .header("Content-Type", "application/json")
-            .build()
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .uri(URI.create(listingsUrl))
+                .header("Content-Type", "application/json")
+                .build()
         val response = client.send(request, HttpResponse.BodyHandlers.ofString())
         if (response.statusCode() != HttpURLConnection.HTTP_OK) {
             throw IllegalStateException("Bad status ${response.statusCode()} on listings response for ${card.name}; body ${response.body()}")
@@ -133,18 +142,18 @@ class TcgPlayerApi {
         val cartCookie = cookies.first { it.name == "StoreCart_PRODUCTION" }
         val cookieValue = cartCookie.value
         val cookieContents = cookieValue.trim()
-            .split("&")
-            .associate { it.substringBefore("=") to it.substringAfter("=") }
+                .split("&")
+                .associate { it.substringBefore("=") to it.substringAfter("=") }
         cookieContents["CK"] ?: "Bad cookie contents $cookieValue"
     }
 
     fun purchase(requestBody: PurchaseRequest) {
         val addUrl = "https://mpapi.tcgplayer.com/v2/cart/$cartKey/item/add"
         val request = HttpRequest.newBuilder()
-            .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(requestBody)))
-            .uri(URI.create(addUrl))
-            .header("Content-Type", "application/json")
-            .build()
+                .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(requestBody)))
+                .uri(URI.create(addUrl))
+                .header("Content-Type", "application/json")
+                .build()
         val response = client.send(request, HttpResponse.BodyHandlers.ofString())
         if (response.statusCode() != HttpURLConnection.HTTP_OK) {
             throw IllegalStateException("Bad status ${response.statusCode()} adding to cart $cartKey; request body $requestBody, response body ${response.body()}")
@@ -157,29 +166,29 @@ private data class SearchResults(val results: List<SearchResult>)
 data class SearchResult(val productName: String, val setName: String, val productId: Int)
 private data class ListingResults(val results: List<ListingResult>)
 data class ListingResult(
-    val quantity: Int,
-    val price: Double,
-    val sellerName: String,
-    val listingId: Long,
-    val productConditionId: Double,
-    val directSeller: Boolean,
-    val sellerKey: String,
-    val channelId: Int
+        val quantity: Int,
+        val price: Double,
+        val sellerName: String,
+        val listingId: Long,
+        val productConditionId: Double,
+        val directSeller: Boolean,
+        val sellerKey: String,
+        val channelId: Int
 )
 
 data class PurchaseRequest(
-    val sku: Double,
-    val sellerKey: String,
-    val channelId: Int,
-    val requestedQuantity: Int,
-    val price: Double,
-    val isDirect: Boolean
+        val sku: Double,
+        val sellerKey: String,
+        val channelId: Int,
+        val requestedQuantity: Int,
+        val price: Double,
+        val isDirect: Boolean
 )
 
 class TcgPlayerPurchaseOption(
-    override val good: Card,
-    private val listingResult: ListingResult,
-    private val api: TcgPlayerApi
+        override val good: Card,
+        private val listingResult: ListingResult,
+        private val api: TcgPlayerApi
 ) : PurchaseOption<Card> {
     override val key = listingResult.listingId.toString()
     override val vendorName = listingResult.sellerName
@@ -191,12 +200,12 @@ class TcgPlayerPurchaseOption(
      */
     override fun purchase(quantity: Int) {
         val request = PurchaseRequest(
-            sku = listingResult.productConditionId,
-            sellerKey = listingResult.sellerKey,
-            channelId = listingResult.channelId,
-            requestedQuantity = quantity,
-            price = listingResult.price,
-            isDirect = listingResult.directSeller
+                sku = listingResult.productConditionId,
+                sellerKey = listingResult.sellerKey,
+                channelId = listingResult.channelId,
+                requestedQuantity = quantity,
+                price = listingResult.price,
+                isDirect = listingResult.directSeller
         )
         api.purchase(request)
     }
@@ -204,7 +213,8 @@ class TcgPlayerPurchaseOption(
 
 fun main() {
     val tcgPlayer = TcgPlayerApi()
-    val options = tcgPlayer.purchaseOptions(Card("Zenith Flare", "Ikoria: Lair of Behemoths"))
+    val options = tcgPlayer.purchaseOptions(Card("Ghost of Ramirez DePietro", "Commander Legends"))
 
-    options.first().purchase(1)
+    println(options.first().vendorName)
+    println(options.first().price)
 }

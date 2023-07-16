@@ -26,8 +26,8 @@ class MagicCardBuyer {
         )
 
         return missing +
-                DraftSet("Zendikar Rising").cards() +
-                DraftSet("Commander Legends").cards()
+                DraftSet("Commander Legends").cards() +
+                DraftSet("Zendikar Rising").cards()
     }
 
     fun execute() {
@@ -39,7 +39,7 @@ class MagicCardBuyer {
 
         println("Eliminating too-expensive...")
         val (tooExpensive, purchasable) = allCardPurchaseOptions
-                .partition { cardOptions -> cardOptions.options.minOf { it.price } > MAX_PRICE }
+                .partition { cardOptions -> cardOptions.options.isEmpty() || cardOptions.options.minOf { it.price } > MAX_PRICE }
         File("tooExpensive").printWriter().use { out ->
             tooExpensive.forEach { out.println(it.card.name) }
         }
@@ -57,6 +57,8 @@ class MagicCardBuyer {
 
     private fun cardPurchaseOptions(card: Card, quantitySought: Int): CardPurchaseOptions {
         println("Finding purchase options for ${card.name}...")
+        val options = tcgPlayerApi.purchaseOptions(card)
+        if (options.isEmpty()) println("  No options available for ${card.name}!")
         return CardPurchaseOptions(
                 card,
                 quantitySought,
