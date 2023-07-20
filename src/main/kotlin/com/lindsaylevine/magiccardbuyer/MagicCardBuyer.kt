@@ -13,21 +13,14 @@ class MagicCardBuyer {
     companion object {
         // In cents.
         const val MAX_PRICE = 150
-        const val MINIMUM_PURCHASE_PER_VENDOR = 0
+        const val MINIMUM_PURCHASE_PER_VENDOR = 200
         const val COST_PER_VENDOR = 500
     }
 
     private val tcgPlayerApi = TcgPlayerApi()
 
     private fun toPurchase(): List<Pair<Card, Int>> {
-        val missing = listOf(
-                Card("Thornwood Falls", "Ikoria: Lair of Behemoths") to 3,
-                Card("Spelleater Wolverine", "Ikoria: Lair of Behemoths") to 5
-        )
-
-        return missing +
-                DraftSet("Commander Legends").cards() +
-                DraftSet("Zendikar Rising").cards()
+        return DraftSet("Commander Legends").cards()
     }
 
     fun execute() {
@@ -41,7 +34,7 @@ class MagicCardBuyer {
         val (tooExpensive, purchasable) = allCardPurchaseOptions
                 .partition { cardOptions -> cardOptions.options.isEmpty() || cardOptions.options.minOf { it.price } > MAX_PRICE }
         File("tooExpensive").printWriter().use { out ->
-            tooExpensive.forEach { out.println(it.card.name) }
+            tooExpensive.forEach { out.println("${it.quantitySought} ${it.card.name}") }
         }
 
         println("Optimizing...")
