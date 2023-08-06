@@ -13,14 +13,20 @@ class MagicCardBuyer {
     companion object {
         // In cents.
         const val MAX_PRICE = 150
-        const val MINIMUM_PURCHASE_PER_VENDOR = 200
+        const val MINIMUM_PURCHASE_PER_VENDOR = 0
         const val COST_PER_VENDOR = 500
     }
 
     private val tcgPlayerApi = TcgPlayerApi()
 
     private fun toPurchase(): List<Pair<Card, Int>> {
-        return DraftSet("Commander Legends").cards()
+        val missing = listOf(
+                Card("Skyclave Sentinel", "Zenkidar Rising") to 1,
+                Card("Dawnglade Regent", "Commander Legends") to 1,
+                Card("Scrapdiver Serpent", "Commander Legends") to 1
+        )
+
+        return missing + DraftSet("Kaldheim").cards() + DraftSet("Strixhaven: School of Mages").cards()
     }
 
     fun execute() {
@@ -62,6 +68,7 @@ class MagicCardBuyer {
     private fun vendorProblem(cardPurchaseOptions: List<CardPurchaseOptions>): VendorProblem<Card> {
         val sought = cardPurchaseOptions.associate { it.card to it.quantitySought }
         val allPurchaseOptions = cardPurchaseOptions.flatMap { it.options }
+                .distinctBy { it.key }
 
         return VendorProblem(
                 goodQuantitiesSought = sought,

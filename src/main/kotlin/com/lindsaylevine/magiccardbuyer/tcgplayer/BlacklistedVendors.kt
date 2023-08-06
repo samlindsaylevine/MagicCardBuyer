@@ -5,6 +5,8 @@ package com.lindsaylevine.magiccardbuyer.tcgplayer
  */
 object BlacklistedVendors {
     val names = listOf(
-            "Giveaway Games"
+            "Giveaway Games",
+            "Magical Magic Shop",
+            "Baxters Tempe"
     )
 }

@@ -108,10 +108,11 @@ class TcgPlayerApi {
      */
     fun purchaseOptions(card: Card): List<TcgPlayerPurchaseOption> {
         val searchResult = search(card) ?: throw IllegalArgumentException("Unable to find card $card")
-        val listings = listings(searchResult.productId, card)
+        val listings = listings(searchResult.productId, card, MAX_STORES_PER_CARD + BlacklistedVendors.names.size)
 
         return listings
                 .filter { it.sellerName !in BlacklistedVendors.names }
+                .take(MAX_STORES_PER_CARD)
                 .map { TcgPlayerPurchaseOption(card, it, this) }
     }
 
@@ -134,10 +135,15 @@ class TcgPlayerApi {
         }
         val apiResponse: ApiResponse<SearchResults> = mapper.readValue(response.body())
         val results = apiResponse.results.first().results
-        return results.firstOrNull { it.productName.equals(searchName, ignoreCase = true) && it.setName == card.set }
+        return results.firstOrNull { it.productName.equals(searchName, ignoreCase = true) && it.setName == tcgPlayerSetName(card.set) }
         // Sometimes there are no exact name matches because there are multiple hits with different art. So, when that
         // happens, the name will be like "Command Tower (479)". Then we'll take the first one of those that hits.
-                ?: results.firstOrNull { it.productName.isNumberOf(searchName) && it.setName == card.set }
+                ?: results.firstOrNull { it.productName.isNumberOf(searchName) && it.setName == tcgPlayerSetName(card.set) }
+    }
+
+    private fun tcgPlayerSetName(scryfallSetName: String?) = when (scryfallSetName) {
+        "Strixhaven Mystical Archive" -> "Strixhaven: Mystical Archives"
+        else -> scryfallSetName
     }
 
     private fun String.isNumberOf(originalCardName: String): Boolean {
@@ -146,7 +152,7 @@ class TcgPlayerApi {
         return matchingName.equals(originalCardName, ignoreCase = true)
     }
 
-    private fun listings(productId: Int, card: Card): List<ListingResult> {
+    private fun listings(productId: Int, card: Card, maxAmount: Int): List<ListingResult> {
         val listingsUrl = "https://mp-search-api.tcgplayer.com/v1/product/$productId/listings"
         // Mostly taken from a browser request. Forces non-foil and also asks for the appropriate number of listings.
         val requestBody = """
@@ -172,7 +178,7 @@ class TcgPlayerApi {
                 }
               },
               "from": 0,
-              "size": $MAX_STORES_PER_CARD,
+              "size": $maxAmount,
               "sort": {
                 "field": "price+shipping",
                 "order": "asc"

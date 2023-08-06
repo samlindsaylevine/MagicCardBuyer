@@ -104,6 +104,9 @@ class BuyOptimizer {
             throw UnsolvableException("Solution could not be verified as legitimate")
         }
 
+        val numVendors = buyFlagsByVendor.values.sumOf { it.solutionValue() }
+        println("Solved; solution is from ${numVendors.toInt()} vendors for estimated cost ${solver.objective().value().toInt()}")
+
         val purchasesToMake = variablesForOptions.filter { it.variable.solutionValue() > 0 }
                 .map { PurchaseToMake(it.variable.solutionValue().toInt(), it.option) }
         return VendorSolution(purchasesToMake)
