@@ -23,6 +23,9 @@ webpage_cache
 *.ipr
 *.iws
 
+# Mac
+**/.DS_Store
+
 # Cookies
 .cookies.db
 

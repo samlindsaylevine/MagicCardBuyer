@@ -21,13 +21,12 @@ class MagicCardBuyer {
 
     private fun toPurchase(): List<Pair<Card, Int>> {
         val missing = listOf(
-                Card("Thornwood Falls", "Ikoria: Lair of Behemoths") to 3,
-                Card("Spelleater Wolverine", "Ikoria: Lair of Behemoths") to 5
+                Card("Skyclave Sentinel", "Zenkidar Rising") to 1,
+                Card("Dawnglade Regent", "Commander Legends") to 1,
+                Card("Scrapdiver Serpent", "Commander Legends") to 1
         )
 
-        return missing +
-                DraftSet("Zendikar Rising").cards() +
-                DraftSet("Commander Legends").cards()
+        return missing + DraftSet("Kaldheim").cards() + DraftSet("Strixhaven: School of Mages").cards()
     }
 
     fun execute() {
@@ -39,9 +38,9 @@ class MagicCardBuyer {
 
         println("Eliminating too-expensive...")
         val (tooExpensive, purchasable) = allCardPurchaseOptions
-                .partition { cardOptions -> cardOptions.options.minOf { it.price } > MAX_PRICE }
+                .partition { cardOptions -> cardOptions.options.isEmpty() || cardOptions.options.minOf { it.price } > MAX_PRICE }
         File("tooExpensive").printWriter().use { out ->
-            tooExpensive.forEach { out.println(it.card.name) }
+            tooExpensive.forEach { out.println("${it.quantitySought} ${it.card.name}") }
         }
 
         println("Optimizing...")
@@ -57,6 +56,8 @@ class MagicCardBuyer {
 
     private fun cardPurchaseOptions(card: Card, quantitySought: Int): CardPurchaseOptions {
         println("Finding purchase options for ${card.name}...")
+        val options = tcgPlayerApi.purchaseOptions(card)
+        if (options.isEmpty()) println("  No options available for ${card.name}!")
         return CardPurchaseOptions(
                 card,
                 quantitySought,
@@ -67,6 +68,7 @@ class MagicCardBuyer {
     private fun vendorProblem(cardPurchaseOptions: List<CardPurchaseOptions>): VendorProblem<Card> {
         val sought = cardPurchaseOptions.associate { it.card to it.quantitySought }
         val allPurchaseOptions = cardPurchaseOptions.flatMap { it.options }
+                .distinctBy { it.key }
 
         return VendorProblem(
                 goodQuantitiesSought = sought,

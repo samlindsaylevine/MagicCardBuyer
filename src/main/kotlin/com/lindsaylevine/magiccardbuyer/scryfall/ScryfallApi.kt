@@ -20,11 +20,13 @@ class ScryfallApi {
      */
     fun cards(setName: String,
               rarities: List<String>?,
-              extraParameters: String? = null): List<Card> {
+              extraParameters: String? = null,
+              omitBasics: Boolean = true,
+              isBooster: Boolean = true): List<Card> {
         val setCode = setCode(setName)
         val rareParameter = rarities?.joinToString(separator = " or ", prefix = "(", postfix = ")") { "r:$it" }
                 ?: ""
-        val searchString = "set:$setCode not:pwdeck is:booster -t:basic $rareParameter ${extraParameters ?: ""}".trim()
+        val searchString = "set:$setCode not:pwdeck ${if (isBooster) "is:booster " else ""} ${if (omitBasics) "-t:basic " else ""} $rareParameter ${extraParameters ?: ""}".trim()
         val encoded = URLEncoder.encode(searchString, StandardCharsets.UTF_8)
         val searchUrl = "https://api.scryfall.com/cards/search?q=$encoded"
         val searchResponse = get(searchUrl, SearchResponse::class.java)
@@ -42,6 +44,7 @@ class ScryfallApi {
                 .GET()
                 .build()
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+
         return mapper.readValue(response.body(), targetClass)
     }
 }

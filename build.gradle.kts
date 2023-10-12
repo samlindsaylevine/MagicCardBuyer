@@ -7,6 +7,12 @@ repositories {
     mavenCentral()
 }
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
 dependencies {
     // Gradle init suggests doing this to make sure that the Kotlin versions are consistent.
     implementation(platform("org.jetbrains.kotlin:kotlin-bom"))
@@ -17,7 +23,10 @@ dependencies {
     implementation("com.google.ortools:ortools-java:9.6.2534")
 
     // Getting browser cookies to be able to add items to a shopping cart.
-    implementation(files("lib/CookieMonster.jar"))
+    // We've manually stripped the JNA dependency out of this JAR because it is old and conflicts with
+    // OR-Tools. This also includes my fix for the Windows bug that can't find the cookies file in the latest
+    // version of Chrome.
+    implementation(files("lib/CookieMonster-no-jna.jar"))
 
     // JSON.
     implementation("com.fasterxml.jackson.core:jackson-databind:2.14.2")
@@ -29,5 +38,5 @@ dependencies {
 }
 
 application {
-    mainClass.set("com.lindsay-levine.magiccardbuyer.MagicCardBuyer")
+    mainClass.set("com.lindsaylevine.magiccardbuyer.MagicCardBuyerKt")
 }

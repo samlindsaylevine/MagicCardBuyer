@@ -10,7 +10,7 @@ data class VendorSolution<T>(
         val purchasesToMake: List<PurchaseToMake<T>>) {
 
     val totalCost: Int
-        get() = purchasesToMake.sumBy { it.quantity * it.option.price }
+        get() = purchasesToMake.sumOf { it.quantity * it.option.price }
 }
 
 /**

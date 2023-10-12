@@ -51,7 +51,7 @@ class BuyOptimizer : Optimizer {
         // "buy flag". The existence of this flag lets us use the "hacky" constraints below to maintain linearity
         // of the problem.
         val buyFlagsByVendor: Map<String, MPVariable> =
-            variablesByVendor.keys.associateWith { vendorName -> solver.makeIntVar(0.0, 1.0, "buy_flag_$vendorName") }
+                variablesByVendor.keys.associateWith { vendorName -> solver.makeIntVar(0.0, 1.0, "buy_flag_$vendorName") }
 
         // We need the desired amount of each good.
         problem.goodQuantitiesSought.forEach { (good, quantity) ->
@@ -62,7 +62,7 @@ class BuyOptimizer : Optimizer {
 
         variablesByVendor.forEach { (vendorName, variables) ->
             val buyFlag: MPVariable = buyFlagsByVendor[vendorName]
-                ?: throw IllegalStateException("Missing buy flag for $vendorName")
+                    ?: throw IllegalStateException("Missing buy flag for $vendorName")
 
             val vendorVars = variables.map { it.variable }
 
@@ -104,8 +104,11 @@ class BuyOptimizer : Optimizer {
             throw UnsolvableException("Solution could not be verified as legitimate")
         }
 
+        val numVendors = buyFlagsByVendor.values.sumOf { it.solutionValue() }
+        println("Solved; solution is from ${numVendors.toInt()} vendors for estimated cost ${solver.objective().value().toInt()}")
+
         val purchasesToMake = variablesForOptions.filter { it.variable.solutionValue() > 0 }
-            .map { PurchaseToMake(it.variable.solutionValue().toInt(), it.option) }
+                .map { PurchaseToMake(it.variable.solutionValue().toInt(), it.option) }
         return VendorSolution(purchasesToMake)
     }
 }

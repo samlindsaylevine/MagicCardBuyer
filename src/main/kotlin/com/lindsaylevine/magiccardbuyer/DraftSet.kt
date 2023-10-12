@@ -1,6 +1,7 @@
 package com.lindsaylevine.magiccardbuyer
 
 import com.lindsaylevine.magiccardbuyer.scryfall.ScryfallApi
+import com.lindsaylevine.magiccardbuyer.tcgplayer.TcgPlayerApi
 import kotlin.math.ceil
 
 class DraftSet(private val setName: String) {
@@ -20,7 +21,7 @@ class DraftSet(private val setName: String) {
     }
 
     private fun cardsForSlot(slot: PackSlot): List<Pair<Card, Int>> {
-        val cards = scryfallApi.cards(setName = setName, rarities = slot.rarities, extraParameters = slot.extraParameters)
+        val cards = scryfallApi.cards(setName = setName, rarities = slot.rarities, extraParameters = slot.extraParameters, omitBasics = slot.omitBasics)
         val uniqueCardCount = cards.size
         val cardsNecessary = slot.quantity * BOOSTERS_PER_DRAFT * NUM_PLAYERS
         val countPerCard = ceil(cardsNecessary.toDouble() / uniqueCardCount).toInt()
@@ -60,6 +61,45 @@ private enum class SetDefinition(val setName: String?,
                     rareLegendaryCreatures.map { it to 1 } +
                     (prismaticPiper to DraftSet.NUM_PLAYERS)
         }
+    },
+
+    KALDHEIM(setName = "Kaldheim",
+            slots = listOf(
+                    PackSlot(10, listOf("common"), extraParameters = "(-type:snow OR -type:land)"),
+                    PackSlot(3, "uncommon"),
+                    PackSlot(1, "rare", "mythic"),
+                    PackSlot(1, listOf("common"), "(type:snow type:land)", omitBasics = false)
+            )),
+
+    STRIXHAVEN(setName = "Strixhaven: School of Mages",
+            slots = listOf(
+                    PackSlot(9, listOf("common"), extraParameters = "-type:lesson"),
+                    PackSlot(3, listOf("uncommon"), extraParameters = "-type:lesson"),
+                    PackSlot(1, listOf("rare", "mythic"), extraParameters = "-type:lesson"),
+            )) {
+        override fun extraCards(scryfallApi: ScryfallApi): List<Pair<Card, Int>> {
+            // Extra cards! One slot has the mystical archive cards and one has the lessons.
+            val commonLessons = scryfallApi.cards(setName!!, listOf("common"), "type:lesson")
+            val uncommonLessons = scryfallApi.cards(setName, listOf("uncommon"), "type:lesson")
+            val rareLessons = scryfallApi.cards(setName, listOf("rare", "mythic"), "type:lesson")
+// There are 6 rares, 5 uncommons, and 9 commons. We need to get >=48 in total and want to roughly match normal
+            // booster rarity distribution. This seems OK.
+            val lessons =
+                    rareLessons.map { it to 1 } +
+                            uncommonLessons.map { it to 3 } +
+                            commonLessons.map { it to 5 }
+
+            // Mystical archive cards - these are all either rare or uncommon. You are supposed to be 2/3 to have
+            // an uncommon. There are 45 rares (!) and 18 uncommons. 3 uncommons puts us at "meh, close enough" level
+            // to the correct rarity.
+            val archiveSetName = "Strixhaven Mystical Archive"
+            val rareArchives = scryfallApi.cards(archiveSetName, listOf("rare", "mythic"), isBooster = false)
+            val uncommonArchives = scryfallApi.cards(archiveSetName, listOf("uncommon"), isBooster = false)
+
+            val archives = rareArchives.map { it to 1 } + uncommonArchives.map { it to 3 }
+
+            return lessons + archives
+        }
     };
 
     companion object {
@@ -73,11 +113,17 @@ private enum class SetDefinition(val setName: String?,
 
 private class PackSlot(val quantity: Int,
                        val rarities: List<String>,
-                       val extraParameters: String? = null) {
+                       val extraParameters: String? = null,
+                       val omitBasics: Boolean = true) {
     constructor(quantity: Int, vararg rarities: String) : this(quantity, rarities.toList())
 }
 
 fun main() {
-    val set = DraftSet("Commander Legends")
-    set.cards().forEach(::println)
+    val set = DraftSet("Strixhaven: School of Mages")
+    val cards = set.cards()
+    cards.forEach(::println)
+
+    val tcgPlayer = TcgPlayerApi()
+    val options = tcgPlayer.purchaseOptions(cards.last().first)
+    options.first().purchase(1)
 }
