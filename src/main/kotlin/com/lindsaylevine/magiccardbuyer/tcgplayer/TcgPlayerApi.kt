@@ -15,7 +15,8 @@ import java.nio.charset.StandardCharsets
 
 /**
  * TCG Player used to have a public API, but is no longer granting new access. (It required sign-up and human approval.)
- * So, instead it is just HTML scraping ahoy. I guess that's the public, unauthenticated interface...
+ * So, instead we are just mimicking all the requests that we see our browser make in the developer tools. I guess
+ * that's at least one step up from scraping the HTML!
  */
 class TcgPlayerApi {
     companion object {

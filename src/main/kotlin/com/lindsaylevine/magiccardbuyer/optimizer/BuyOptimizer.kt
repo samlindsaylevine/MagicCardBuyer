@@ -22,7 +22,7 @@ import com.google.ortools.linearsolver.MPVariable
  *
  * We use Google's OR Tools library to solve the MILP problem once we have expressed it.
  */
-class BuyOptimizer {
+class BuyOptimizer : Optimizer {
 
     companion object {
         /**
@@ -36,7 +36,7 @@ class BuyOptimizer {
         Loader.loadNativeLibraries()
     }
 
-    fun <T> solve(problem: VendorProblem<T>): VendorSolution<T> {
+    override fun <T> solve(problem: VendorProblem<T>): VendorSolution<T> {
         val solver = MPSolver.createSolver(MPSolver.OptimizationProblemType.CBC_MIXED_INTEGER_PROGRAMMING.name)
 
         val variablesForOptions = problem.purchaseOptions.map { option ->
