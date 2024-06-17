@@ -7,6 +7,7 @@ object BlacklistedVendors {
     val names = listOf(
             "Giveaway Games",
             "Magical Magic Shop",
-            "Baxters Tempe"
+            "Baxters Tempe",
+            "The Calbert store"
     )
 }

@@ -7,11 +7,13 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.lindsaylevine.magiccardbuyer.Card
 import com.lindsaylevine.magiccardbuyer.optimizer.PurchaseOption
-import java.net.*
+import java.net.CookieManager
+import java.net.HttpCookie
+import java.net.HttpURLConnection
+import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import java.nio.charset.StandardCharsets
 
 /**
  * TCG Player used to have a public API, but is no longer granting new access. (It required sign-up and human approval.)
@@ -63,7 +65,7 @@ class TcgPlayerApi {
      * Returns the cart key for the created cart.
      */
     private fun createCart(): String {
-        val cartUrl = "https://mpapi.tcgplayer.com/v2/cart/create/usercart"
+        val cartUrl = "https://mpgateway.tcgplayer.com/v1/cart/create/usercart"
         val externalUserId = externalUserId()
         // Taken from a request in browser.
         val requestBody = """{"externalUserId":"$externalUserId"}"""
@@ -117,13 +119,11 @@ class TcgPlayerApi {
     }
 
     private fun search(card: Card): SearchResult? {
-        // For double-faced cards just take the first part of the name.
-        val searchName = card.name.substringBefore(" //").lowercase()
-        val encoded = URLEncoder.encode(searchName.lowercase(), StandardCharsets.UTF_8)
-        val searchUrl = "https://mp-search-api.tcgplayer.com/v1/search/request?q=$encoded&isList=false"
+        val searchName = card.name
+        val searchUrl = "https://mp-search-api.tcgplayer.com/v1/search/request?q=&isList=false"
         // Taken from a request in browser.
         val requestBody =
-                """{"algorithm":"sales_exp_fields_experiment","from":0,"size":100,"filters":{"term":{},"range":{},"match":{}},"listingSearch":{"context":{"cart":{}},"filters":{"term":{"sellerStatus":"Live","channelId":0},"range":{"quantity":{"gte":1}},"exclude":{"channelExclusion":0}}},"context":{"cart":{},"shippingCountry":"US"},"settings":{"useFuzzySearch":false,"didYouMean":{}},"sort":{}}"""
+                """{"algorithm":"sales_synonym_v2","from":0,"size":24,"filters":{"term":{"productLineName": ["magic"], "productName": ["$searchName"]},"range":{},"match":{}},"listingSearch":{"context":{"cart":{}},"filters":{"term":{"sellerStatus":"Live","channelId":0},"range":{"quantity":{"gte":1}},"exclude":{"channelExclusion":0}}},"context":{"cart":{},"shippingCountry":"US"},"settings":{"useFuzzySearch":false,"didYouMean":{}},"sort":{}}"""
         val request = HttpRequest.newBuilder()
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .uri(URI.create(searchUrl))
@@ -207,7 +207,7 @@ class TcgPlayerApi {
 
 
     fun purchase(requestBody: PurchaseRequest) {
-        val addUrl = "https://mpapi.tcgplayer.com/v2/cart/$cartKey/item/add"
+        val addUrl = "https://mpgateway.tcgplayer.com/v1/cart/$cartKey/item/add"
         val request = HttpRequest.newBuilder()
                 .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(requestBody)))
                 .uri(URI.create(addUrl))
@@ -286,7 +286,7 @@ class TcgPlayerPurchaseOption(
 
 fun main() {
     val tcgPlayer = TcgPlayerApi()
-    val options = tcgPlayer.purchaseOptions(Card("Command Tower", "Commander Legends"))
+    val options = tcgPlayer.purchaseOptions(Card("Flumph", "Adventures in the Forgotten Realms"))
 
     println(options.first().vendorName)
     println(options.first().price)

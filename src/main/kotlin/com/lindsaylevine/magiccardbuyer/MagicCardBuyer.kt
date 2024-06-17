@@ -13,7 +13,7 @@ class MagicCardBuyer {
     companion object {
         // In cents.
         const val MAX_PRICE = 150
-        const val MINIMUM_PURCHASE_PER_VENDOR = 0
+        const val MINIMUM_PURCHASE_PER_VENDOR = 100
         const val COST_PER_VENDOR = 500
     }
 
@@ -21,12 +21,27 @@ class MagicCardBuyer {
 
     private fun toPurchase(): List<Pair<Card, Int>> {
         val missing = listOf(
-                Card("Skyclave Sentinel", "Zenkidar Rising") to 1,
-                Card("Dawnglade Regent", "Commander Legends") to 1,
-                Card("Scrapdiver Serpent", "Commander Legends") to 1
+                Card("Battlefield Raptor", "Kaldheim") to 2,
+                Card("Brinebarrow Intruder", "Kaldheim") to 2,
+                Card("Guardian Gladewalker", "Kaldheim") to 1,
+                Card("Invoke the Divine", "Kaldheim") to 4,
+                Card("Jaspera Sentinel", "Kaldheim") to 2,
+                Card("Raise the Draugr", "Kaldheim") to 3,
+                Card("Ascent of the Worthy", "Kaldheim") to 1,
+                Card("Fearless Liberator", "Kaldheim") to 2,
+                Card("Frost Augur", "Kaldheim") to 1,
+                Card("Icebind Pillar", "Kaldheim") to 1,
+                Card("Shepherd of the Cosmos", "Kaldheim") to 2,
+                Card("Tergrid's Shadow", "Kaldheim") to 2,
+                Card("The Three Seasons", "Kaldheim") to 1,
+                Card("Ascendant Spirit", "Kaldheim") to 1,
+                Card("Draugr Necromancer", "Kaldheim") to 1,
+                Card("Glorious Protector", "Kaldheim") to 1,
+                Card("Shimmerdrift Vale", "Kaldheim") to 1,
+                Card("Woodland Chasm", "Kaldheim") to 1,
         )
 
-        return missing + DraftSet("Kaldheim").cards() + DraftSet("Strixhaven: School of Mages").cards()
+        return missing + DraftSet("Strixhaven: School of Mages").cards()
     }
 
     fun execute() {
@@ -55,7 +70,7 @@ class MagicCardBuyer {
     }
 
     private fun cardPurchaseOptions(card: Card, quantitySought: Int): CardPurchaseOptions {
-        println("Finding purchase options for ${card.name}...")
+        println("Finding purchase options for ${card.name} from ${card.set}...")
         val options = tcgPlayerApi.purchaseOptions(card)
         if (options.isEmpty()) println("  No options available for ${card.name}!")
         return CardPurchaseOptions(

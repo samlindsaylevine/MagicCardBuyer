@@ -119,7 +119,7 @@ private class PackSlot(val quantity: Int,
 }
 
 fun main() {
-    val set = DraftSet("Strixhaven: School of Mages")
+    val set = DraftSet("Adventures in the Forgotten Realms")
     val cards = set.cards()
     cards.forEach(::println)
 
