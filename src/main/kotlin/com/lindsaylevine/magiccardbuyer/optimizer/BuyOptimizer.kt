@@ -3,6 +3,7 @@ package com.lindsaylevine.magiccardbuyer.optimizer
 import com.google.ortools.Loader
 import com.google.ortools.linearsolver.MPSolver
 import com.google.ortools.linearsolver.MPVariable
+import com.google.ortools.sat.*
 
 /**
  * Optimizer to solve the cheapest solution for buying goods from vendors.
@@ -29,7 +30,7 @@ class BuyOptimizer : Optimizer {
          * This large number is used to enforce the "buy flag". If you're ever trying to buy
          * more total goods than this, the optimizer will break down.
          */
-        private const val LARGE_NUMBER = 1_000_000.0
+        private const val LARGE_NUMBER = 1_000_000L
     }
 
     init {
@@ -37,10 +38,10 @@ class BuyOptimizer : Optimizer {
     }
 
     override fun <T> solve(problem: VendorProblem<T>): VendorSolution<T> {
-        val solver = MPSolver.createSolver(MPSolver.OptimizationProblemType.CBC_MIXED_INTEGER_PROGRAMMING.name)
+        val model = CpModel()
 
         val variablesForOptions = problem.purchaseOptions.map { option ->
-            val variable = solver.makeIntVar(0.0, option.availableQuantity.toDouble(), option.key)
+            val variable = model.newIntVar(0, option.availableQuantity.toLong(), option.key)
             VariableAndOption(variable, option)
         }
 
@@ -50,18 +51,18 @@ class BuyOptimizer : Optimizer {
         //We define a variable for each vendor that is whether we are purchasing anything for that vendor: the
         // "buy flag". The existence of this flag lets us use the "hacky" constraints below to maintain linearity
         // of the problem.
-        val buyFlagsByVendor: Map<String, MPVariable> =
-                variablesByVendor.keys.associateWith { vendorName -> solver.makeIntVar(0.0, 1.0, "buy_flag_$vendorName") }
+        val buyFlagsByVendor: Map<String, IntVar> =
+                variablesByVendor.keys.associateWith { vendorName -> model.newIntVar(0, 1, "buy_flag_$vendorName") }
 
         // We need the desired amount of each good.
         problem.goodQuantitiesSought.forEach { (good, quantity) ->
             val variables = variablesByGood[good] ?: throw UnsolvableException("Desire $good but it is unavailable")
-            val totalAmountConstraint = solver.makeConstraint(quantity.toDouble(), quantity.toDouble())
-            variables.forEach { totalAmountConstraint.setCoefficient(it.variable, 1.0) }
+            val purchasedExpression = LinearExpr.sum(variables.map { it.variable }.toTypedArray())
+            model.addEquality(purchasedExpression, quantity.toLong())
         }
 
         variablesByVendor.forEach { (vendorName, variables) ->
-            val buyFlag: MPVariable = buyFlagsByVendor[vendorName]
+            val buyFlag: IntVar = buyFlagsByVendor[vendorName]
                     ?: throw IllegalStateException("Missing buy flag for $vendorName")
 
             val vendorVars = variables.map { it.variable }
@@ -70,47 +71,50 @@ class BuyOptimizer : Optimizer {
             // (quantity1 + quantity2 + ....) - (LARGE_NUM) * buyFlag <= 0
             // This constraint is a bit of a hack in order to maintain the linearity of the problem. We pick an arbitrarily
             // large coefficient on the buy flag.
-            val buyAnything = solver.makeConstraint(-MPSolver.infinity(), 0.0)
-            buyAnything.setCoefficient(buyFlag, -LARGE_NUMBER)
-            vendorVars.forEach { buyAnything.setCoefficient(it, 1.0) }
+            val boughtFromThisVendorExpression = LinearExpr.weightedSum(
+                (vendorVars + buyFlag).toTypedArray(),
+                (List(vendorVars.size) { 1L} + (-LARGE_NUMBER)).toLongArray()
+            )
+            model.addLessOrEqual(boughtFromThisVendorExpression, 0)
 
             if (problem.minimumRequiredPurchase > 0) {
                 // If we do buy anything from a merchant, we need to spend at least the minimum amount.
                 // quantity1 * cost 1 + quantity2 * cost 2 + .... - MINIMUM_SPEND * buyFlag >= 0
                 // Here is where the buyFlag lets us maintain linearity.
-                val minimumSpend = solver.makeConstraint(-MPSolver.infinity(), 0.0)
-                minimumSpend.setCoefficient(buyFlag, problem.minimumRequiredPurchase.toDouble())
-                variables.forEach { minimumSpend.setCoefficient(it.variable, -it.option.price.toDouble()) }
+                val costFromThisVendorExpression = LinearExpr.weightedSum(
+                    (vendorVars + buyFlag).toTypedArray(),
+                    (variables.map { it.option.price.toLong() } + (-problem.minimumRequiredPurchase.toLong())).toLongArray()
+                )
+                model.addGreaterOrEqual(costFromThisVendorExpression, 0)
             }
         }
 
-        val totalCost = solver.objective()
-        variablesForOptions.forEach { (variable, option) ->
-            totalCost.setCoefficient(variable, option.price.toDouble())
-        }
-        if (problem.costPerVendor > 0) {
-            buyFlagsByVendor.values.forEach { totalCost.setCoefficient(it, problem.costPerVendor.toDouble()) }
-        }
-        totalCost.setMinimization()
+        val costPerVendorVariables = if (problem.costPerVendor > 0) buyFlagsByVendor.values else emptyList()
+        val costPerVendorCoefficients = costPerVendorVariables.map { problem.costPerVendor.toLong() }
 
-        println("Solving for ${solver.variables().size} variables...")
-        val resultStatus = solver.solve()
+        val totalCost = LinearExpr.weightedSum(
+            (variablesForOptions.map { it.variable } + costPerVendorVariables).toTypedArray(),
+            (variablesForOptions.map { it.option.price.toLong() } + costPerVendorCoefficients).toLongArray()
+        )
 
-        if (resultStatus != MPSolver.ResultStatus.OPTIMAL) {
+        model.minimize(totalCost)
+
+        val numVariables = variablesForOptions.size + buyFlagsByVendor.size
+        println("Solving for $numVariables variables...")
+        val solver = CpSolver()
+        val resultStatus = solver.solve(model)
+
+        if (resultStatus != CpSolverStatus.OPTIMAL) {
             throw UnsolvableException("Vendor problem was not mathematically solveable; returned status $resultStatus")
         }
 
-        if (!solver.verifySolution(1e-7, true)) {
-            throw UnsolvableException("Solution could not be verified as legitimate")
-        }
+        val numVendors = buyFlagsByVendor.values.sumOf { solver.value(it) }
+        println("Solved; solution is from ${numVendors.toInt()} vendors for estimated cost ${solver.objectiveValue()}")
 
-        val numVendors = buyFlagsByVendor.values.sumOf { it.solutionValue() }
-        println("Solved; solution is from ${numVendors.toInt()} vendors for estimated cost ${solver.objective().value().toInt()}")
-
-        val purchasesToMake = variablesForOptions.filter { it.variable.solutionValue() > 0 }
-                .map { PurchaseToMake(it.variable.solutionValue().toInt(), it.option) }
+        val purchasesToMake = variablesForOptions.filter { solver.value(it.variable) > 0 }
+                .map { PurchaseToMake(solver.value(it.variable).toInt(), it.option) }
         return VendorSolution(purchasesToMake)
     }
 }
 
-private data class VariableAndOption<T>(val variable: MPVariable, val option: PurchaseOption<T>)
+private data class VariableAndOption<T>(val variable: IntVar, val option: PurchaseOption<T>)

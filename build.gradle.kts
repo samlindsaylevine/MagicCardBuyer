@@ -20,7 +20,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
 
     // Google's OR Tools for solving optimization problems in linear programming.
-    implementation("com.google.ortools:ortools-java:9.6.2534")
+    implementation("com.google.ortools:ortools-java:9.10.4067")
 
     // Getting browser cookies to be able to add items to a shopping cart.
     // We've manually stripped the JNA dependency out of this JAR because it is old and conflicts with

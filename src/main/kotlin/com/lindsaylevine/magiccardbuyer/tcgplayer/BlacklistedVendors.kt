@@ -8,6 +8,7 @@ object BlacklistedVendors {
             "Giveaway Games",
             "Magical Magic Shop",
             "Baxters Tempe",
-            "The Calbert store"
+            "The Calbert store",
+            "MyRPGShoppe"
     )
 }

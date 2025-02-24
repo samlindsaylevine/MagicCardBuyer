@@ -122,8 +122,9 @@ fun main() {
     val set = DraftSet("Adventures in the Forgotten Realms")
     val cards = set.cards()
     cards.forEach(::println)
+    println(cards.size)
 
     val tcgPlayer = TcgPlayerApi()
     val options = tcgPlayer.purchaseOptions(cards.last().first)
-    options.first().purchase(1)
+    // options.first().purchase(1)
 }

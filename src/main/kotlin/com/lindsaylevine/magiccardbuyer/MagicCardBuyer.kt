@@ -4,6 +4,7 @@
 package com.lindsaylevine.magiccardbuyer
 
 import com.lindsaylevine.magiccardbuyer.optimizer.BuyOptimizer
+import com.lindsaylevine.magiccardbuyer.optimizer.GreedyOptimizer
 import com.lindsaylevine.magiccardbuyer.optimizer.PurchaseOption
 import com.lindsaylevine.magiccardbuyer.optimizer.VendorProblem
 import com.lindsaylevine.magiccardbuyer.tcgplayer.TcgPlayerApi
@@ -13,7 +14,7 @@ class MagicCardBuyer {
     companion object {
         // In cents.
         const val MAX_PRICE = 150
-        const val MINIMUM_PURCHASE_PER_VENDOR = 100
+        const val MINIMUM_PURCHASE_PER_VENDOR = 0
         const val COST_PER_VENDOR = 500
     }
 
@@ -21,35 +22,45 @@ class MagicCardBuyer {
 
     private fun toPurchase(): List<Pair<Card, Int>> {
         val missing = listOf(
-                Card("Battlefield Raptor", "Kaldheim") to 2,
-                Card("Brinebarrow Intruder", "Kaldheim") to 2,
-                Card("Guardian Gladewalker", "Kaldheim") to 1,
-                Card("Invoke the Divine", "Kaldheim") to 4,
-                Card("Jaspera Sentinel", "Kaldheim") to 2,
-                Card("Raise the Draugr", "Kaldheim") to 3,
-                Card("Ascent of the Worthy", "Kaldheim") to 1,
-                Card("Fearless Liberator", "Kaldheim") to 2,
-                Card("Frost Augur", "Kaldheim") to 1,
-                Card("Icebind Pillar", "Kaldheim") to 1,
-                Card("Shepherd of the Cosmos", "Kaldheim") to 2,
-                Card("Tergrid's Shadow", "Kaldheim") to 2,
-                Card("The Three Seasons", "Kaldheim") to 1,
-                Card("Ascendant Spirit", "Kaldheim") to 1,
-                Card("Draugr Necromancer", "Kaldheim") to 1,
-                Card("Glorious Protector", "Kaldheim") to 1,
-                Card("Shimmerdrift Vale", "Kaldheim") to 1,
-                Card("Woodland Chasm", "Kaldheim") to 1,
+            Card("Baleful Mastery", "Strixhaven: School of Mages") to 1,
+            Card("Strategic Planning", "Strixhaven: Mystical Archives") to 3,
+            Card("Aether Helix", "Strixhaven: School of Mages") to 2,
+            Card("Arcane Subtraction", "Strixhaven: School of Mages") to 5,
+            Card("Ardent Dustspeaker", "Strixhaven: School of Mages") to 2,
+            Card("Blood Age General", "Strixhaven: School of Mages") to 1,
+            Card("Defend the Campus", "Strixhaven: School of Mages") to 3,
+            Card("Detention Vortex", "Strixhaven: School of Mages") to 2,
+            Card("Elemental Masterpiece", "Strixhaven: School of Mages") to 5,
+            Card("Exhilarating Elocution", "Strixhaven: School of Mages") to 5,
+            Card("Flunk", "Strixhaven: School of Mages") to 2,
+            Card("Heated Debate", "Strixhaven: School of Mages") to 5,
+            Card("Humiliate", "Strixhaven: School of Mages") to 2,
+            Card("Inkling Summoning", "Strixhaven: School of Mages") to 5,
+            Card("Lash of Malice", "Strixhaven: School of Mages") to 5,
+            Card("Mage Hunters' Onslaught", "Strixhaven: School of Mages") to 5,
+            Card("Oggyar Battle-Seer", "Strixhaven: School of Mages") to 5,
+            Card("Pilgrim of the Ages", "Strixhaven: School of Mages") to 5,
+            Card("Pillardrop Warden", "Strixhaven: School of Mages") to 2,
+            Card("Prismari Pledgemage", "Strixhaven: School of Mages") to 5,
+            Card("Promising Duskmage", "Strixhaven: School of Mages") to 5,
+            Card("Reckless Amplimancer", "Strixhaven: School of Mages") to 5,
+            Card("Reflective Golem", "Strixhaven: School of Mages") to 2,
+            Card("Shadewing Laureate", "Strixhaven: School of Mages") to 2,
+            Card("Snow Day", "Strixhaven: School of Mages") to 2,
+            Card("Specter of the Fens", "Strixhaven: School of Mages") to 5,
+            Card("Test of Talents", "Strixhaven: School of Mages") to 1,
+            Card("Wormhole Serpent", "Strixhaven: School of Mages") to 2,
         )
 
-        return missing + DraftSet("Strixhaven: School of Mages").cards()
+        return missing + DraftSet("Adventures in the Forgotten Realms").cards()
     }
 
-    fun execute() {
+    fun execute(directOnly: Boolean = false) {
         val toPurchase = toPurchase()
 
         println("Finding purchase options...")
         val allCardPurchaseOptions: List<CardPurchaseOptions> =
-                toPurchase.map { (card, quantitySought) -> cardPurchaseOptions(card, quantitySought) }
+                toPurchase.map { (card, quantitySought) -> cardPurchaseOptions(card, quantitySought, directOnly) }
 
         println("Eliminating too-expensive...")
         val (tooExpensive, purchasable) = allCardPurchaseOptions
@@ -60,23 +71,24 @@ class MagicCardBuyer {
 
         println("Optimizing...")
         val problem = vendorProblem(purchasable)
-        val solution = BuyOptimizer().solve(problem)
+        val optimizer = if (directOnly) GreedyOptimizer() else BuyOptimizer()
+        val solution =optimizer.solve(problem)
 
         println("Purchasing...")
         solution.purchasesToMake.forEach {
-            println("Purchasing ${it.quantity} ${it.option.good.name}")
+            println("Purchasing ${it.quantity} ${it.option.good.name} from ${it.option.vendorName}")
             it.option.purchase(it.quantity)
         }
     }
 
-    private fun cardPurchaseOptions(card: Card, quantitySought: Int): CardPurchaseOptions {
+    private fun cardPurchaseOptions(card: Card, quantitySought: Int, directOnly: Boolean): CardPurchaseOptions {
         println("Finding purchase options for ${card.name} from ${card.set}...")
-        val options = tcgPlayerApi.purchaseOptions(card)
+        val options = tcgPlayerApi.purchaseOptions(card, directOnly)
         if (options.isEmpty()) println("  No options available for ${card.name}!")
         return CardPurchaseOptions(
                 card,
                 quantitySought,
-                tcgPlayerApi.purchaseOptions(card)
+                options
         )
     }
 

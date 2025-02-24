@@ -37,8 +37,19 @@ class TcgPlayerApi {
         val cookieHandler = CookieManager()
         cookies.map { it.toHttpCookie() }
                 .forEach {
-                    cookieHandler.cookieStore.add(URI("https://tcgplayer.com"), it)
-                    cookieHandler.cookieStore.add(URI("https://mpapi.tcgplayer.com"), it)
+                    // Our cookie-retrieving library is getting some bogus values - it has padded mojibake at the front of the
+                    // actual cookie value.
+                    // e.g., our cookie value is coming back as "m}?CUf�u5�>@v�ê?���k6���χ��53616c[...]b5fc5"
+                    // when we see in the browser developer tools that it should be just "53616c[...]b5fc5".
+                    // We're going to implement a sort of dorky workaround here to take only the final part that starts being normal
+                    // ASCII text.
+                    val asciiValue = it.value.takeLastWhile { char -> char.code < 128}
+                    val cookie = HttpCookie(it.name, asciiValue).apply {
+                        path = "/"
+                        version = 0
+                    }
+                    cookieHandler.cookieStore.add(URI("https://tcgplayer.com"), cookie)
+                    cookieHandler.cookieStore.add(URI("https://mpapi.tcgplayer.com"), cookie)
                 }
 
         HttpClient.newBuilder()
@@ -108,14 +119,19 @@ class TcgPlayerApi {
     /**
      * Returns the purchase options available for card.
      */
-    fun purchaseOptions(card: Card): List<TcgPlayerPurchaseOption> {
+    fun purchaseOptions(card: Card, directOnly: Boolean = false): List<TcgPlayerPurchaseOption> {
         val searchResult = search(card) ?: throw IllegalArgumentException("Unable to find card $card")
-        val listings = listings(searchResult.productId, card, MAX_STORES_PER_CARD + BlacklistedVendors.names.size)
+        val listings = listings(
+            searchResult.productId,
+            card,
+            MAX_STORES_PER_CARD + BlacklistedVendors.names.size,
+            directOnly
+        )
 
         return listings
                 .filter { it.sellerName !in BlacklistedVendors.names }
                 .take(MAX_STORES_PER_CARD)
-                .map { TcgPlayerPurchaseOption(card, it, this) }
+                .map { TcgPlayerPurchaseOption(card, it, directOnly,this) }
     }
 
     private fun search(card: Card): SearchResult? {
@@ -152,7 +168,10 @@ class TcgPlayerApi {
         return matchingName.equals(originalCardName, ignoreCase = true)
     }
 
-    private fun listings(productId: Int, card: Card, maxAmount: Int): List<ListingResult> {
+    private fun listings(productId: Int,
+                         card: Card,
+                         maxAmount: Int,
+                         directOnly: Boolean = false): List<ListingResult> {
         val listingsUrl = "https://mp-search-api.tcgplayer.com/v1/product/$productId/listings"
         // Mostly taken from a browser request. Forces non-foil and also asks for the appropriate number of listings.
         val requestBody = """
@@ -167,11 +186,13 @@ class TcgPlayerApi {
                   "printing": [
                     "Normal"
                   ]
+                  ${if(directOnly) """, "directProduct": true, "direct-seller": true""" else ""} 
                 },
                 "range": {
                   "quantity": {
                     "gte": 1
                   }
+                   ${if(directOnly) """, "directInventory": {"gte":1}""" else ""} 
                 },
                 "exclude": {
                   "channelExclusion": 0
@@ -202,14 +223,19 @@ class TcgPlayerApi {
             throw IllegalStateException("Bad status ${response.statusCode()} on listings response for ${card.name}; body ${response.body()}")
         }
         val apiResponse: ApiResponse<ListingResults> = mapper.readValue(response.body())
+        val nonDirect = apiResponse.results.first().results.filter { !it.directSeller }
+        if (directOnly && nonDirect.isNotEmpty()) {
+            throw IllegalStateException("Requested direct only but found:\n $nonDirect")
+        }
         return apiResponse.results.first().results
     }
 
 
     fun purchase(requestBody: PurchaseRequest) {
         val addUrl = "https://mpgateway.tcgplayer.com/v1/cart/$cartKey/item/add"
+        val body = mapper.writeValueAsString(requestBody)
         val request = HttpRequest.newBuilder()
-                .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(requestBody)))
+                .POST(HttpRequest.BodyPublishers.ofString(body))
                 .uri(URI.create(addUrl))
                 .header("Content-Type", "application/json")
                 .build()
@@ -235,6 +261,7 @@ data class SearchResult(val productName: String, val setName: String, val produc
 private data class ListingResults(val results: List<ListingResult>)
 data class ListingResult(
         val quantity: Int,
+        val directInventory: Int,
         val price: Double,
         val sellerName: String,
         val listingId: Long,
@@ -245,22 +272,24 @@ data class ListingResult(
 )
 
 data class PurchaseRequest(
-        val sku: Double,
+        val sku: Long,
         val sellerKey: String,
         val channelId: Int,
         val requestedQuantity: Int,
         val price: Double,
-        val isDirect: Boolean
+        val isDirect: Boolean,
+        val countryCode: String = "US"
 )
 
-class TcgPlayerPurchaseOption(
+data class TcgPlayerPurchaseOption(
         override val good: Card,
         private val listingResult: ListingResult,
+        private val directOnly: Boolean,
         private val api: TcgPlayerApi
 ) : PurchaseOption<Card> {
     override val key = listingResult.listingId.toString()
     override val vendorName = listingResult.sellerName
-    override val availableQuantity = listingResult.quantity
+    override val availableQuantity = if (directOnly) listingResult.directInventory else listingResult.quantity
     override val price: Int = (listingResult.price * 100).toInt()
 
     /**
@@ -268,7 +297,7 @@ class TcgPlayerPurchaseOption(
      */
     override fun purchase(quantity: Int) {
         val request = PurchaseRequest(
-                sku = listingResult.productConditionId,
+                sku = listingResult.productConditionId.toLong(),
                 sellerKey = listingResult.sellerKey,
                 channelId = listingResult.channelId,
                 requestedQuantity = quantity,
@@ -286,7 +315,7 @@ class TcgPlayerPurchaseOption(
 
 fun main() {
     val tcgPlayer = TcgPlayerApi()
-    val options = tcgPlayer.purchaseOptions(Card("Flumph", "Adventures in the Forgotten Realms"))
+    val options = tcgPlayer.purchaseOptions(Card("Flumph", "Adventures in the Forgotten Realms"), directOnly = true)
 
     println(options.first().vendorName)
     println(options.first().price)
