@@ -119,19 +119,18 @@ class TcgPlayerApi {
     /**
      * Returns the purchase options available for card.
      */
-    fun purchaseOptions(card: Card, directOnly: Boolean = false): List<TcgPlayerPurchaseOption> {
+    fun purchaseOptions(card: Card): List<TcgPlayerPurchaseOption> {
         val searchResult = search(card) ?: throw IllegalArgumentException("Unable to find card $card")
         val listings = listings(
             searchResult.productId,
             card,
-            MAX_STORES_PER_CARD + BlacklistedVendors.names.size,
-            directOnly
+            MAX_STORES_PER_CARD + BlacklistedVendors.names.size
         )
 
         return listings
                 .filter { it.sellerName !in BlacklistedVendors.names }
                 .take(MAX_STORES_PER_CARD)
-                .map { TcgPlayerPurchaseOption(card, it, directOnly,this) }
+                .map { TcgPlayerPurchaseOption(card, it, this) }
     }
 
     private fun search(card: Card): SearchResult? {
@@ -170,8 +169,7 @@ class TcgPlayerApi {
 
     private fun listings(productId: Int,
                          card: Card,
-                         maxAmount: Int,
-                         directOnly: Boolean = false): List<ListingResult> {
+                         maxAmount: Int): List<ListingResult> {
         val listingsUrl = "https://mp-search-api.tcgplayer.com/v1/product/$productId/listings"
         // Mostly taken from a browser request. Forces non-foil and also asks for the appropriate number of listings.
         val requestBody = """
@@ -186,13 +184,11 @@ class TcgPlayerApi {
                   "printing": [
                     "Normal"
                   ]
-                  ${if(directOnly) """, "directProduct": true, "direct-seller": true""" else ""} 
                 },
                 "range": {
                   "quantity": {
                     "gte": 1
                   }
-                   ${if(directOnly) """, "directInventory": {"gte":1}""" else ""} 
                 },
                 "exclude": {
                   "channelExclusion": 0
@@ -223,10 +219,6 @@ class TcgPlayerApi {
             throw IllegalStateException("Bad status ${response.statusCode()} on listings response for ${card.name}; body ${response.body()}")
         }
         val apiResponse: ApiResponse<ListingResults> = mapper.readValue(response.body())
-        val nonDirect = apiResponse.results.first().results.filter { !it.directSeller }
-        if (directOnly && nonDirect.isNotEmpty()) {
-            throw IllegalStateException("Requested direct only but found:\n $nonDirect")
-        }
         return apiResponse.results.first().results
     }
 
@@ -261,7 +253,6 @@ data class SearchResult(val productName: String, val setName: String, val produc
 private data class ListingResults(val results: List<ListingResult>)
 data class ListingResult(
         val quantity: Int,
-        val directInventory: Int,
         val price: Double,
         val sellerName: String,
         val listingId: Long,
@@ -284,12 +275,11 @@ data class PurchaseRequest(
 data class TcgPlayerPurchaseOption(
         override val good: Card,
         private val listingResult: ListingResult,
-        private val directOnly: Boolean,
         private val api: TcgPlayerApi
 ) : PurchaseOption<Card> {
     override val key = listingResult.listingId.toString()
     override val vendorName = listingResult.sellerName
-    override val availableQuantity = if (directOnly) listingResult.directInventory else listingResult.quantity
+    override val availableQuantity = listingResult.quantity
     override val price: Int = (listingResult.price * 100).toInt()
 
     /**
@@ -315,7 +305,7 @@ data class TcgPlayerPurchaseOption(
 
 fun main() {
     val tcgPlayer = TcgPlayerApi()
-    val options = tcgPlayer.purchaseOptions(Card("Flumph", "Adventures in the Forgotten Realms"), directOnly = true)
+    val options = tcgPlayer.purchaseOptions(Card("Flumph", "Adventures in the Forgotten Realms"))
 
     println(options.first().vendorName)
     println(options.first().price)

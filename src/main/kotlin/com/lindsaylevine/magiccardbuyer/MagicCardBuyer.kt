@@ -4,7 +4,6 @@
 package com.lindsaylevine.magiccardbuyer
 
 import com.lindsaylevine.magiccardbuyer.optimizer.BuyOptimizer
-import com.lindsaylevine.magiccardbuyer.optimizer.GreedyOptimizer
 import com.lindsaylevine.magiccardbuyer.optimizer.PurchaseOption
 import com.lindsaylevine.magiccardbuyer.optimizer.VendorProblem
 import com.lindsaylevine.magiccardbuyer.tcgplayer.TcgPlayerApi
@@ -55,12 +54,12 @@ class MagicCardBuyer {
         return missing + DraftSet("Adventures in the Forgotten Realms").cards()
     }
 
-    fun execute(directOnly: Boolean = false) {
+    fun execute() {
         val toPurchase = toPurchase()
 
         println("Finding purchase options...")
         val allCardPurchaseOptions: List<CardPurchaseOptions> =
-                toPurchase.map { (card, quantitySought) -> cardPurchaseOptions(card, quantitySought, directOnly) }
+                toPurchase.map { (card, quantitySought) -> cardPurchaseOptions(card, quantitySought) }
 
         println("Eliminating too-expensive...")
         val (tooExpensive, purchasable) = allCardPurchaseOptions
@@ -71,7 +70,7 @@ class MagicCardBuyer {
 
         println("Optimizing...")
         val problem = vendorProblem(purchasable)
-        val optimizer = if (directOnly) GreedyOptimizer() else BuyOptimizer()
+        val optimizer = BuyOptimizer()
         val solution =optimizer.solve(problem)
 
         println("Purchasing...")
@@ -81,9 +80,9 @@ class MagicCardBuyer {
         }
     }
 
-    private fun cardPurchaseOptions(card: Card, quantitySought: Int, directOnly: Boolean): CardPurchaseOptions {
+    private fun cardPurchaseOptions(card: Card, quantitySought: Int): CardPurchaseOptions {
         println("Finding purchase options for ${card.name} from ${card.set}...")
-        val options = tcgPlayerApi.purchaseOptions(card, directOnly)
+        val options = tcgPlayerApi.purchaseOptions(card)
         if (options.isEmpty()) println("  No options available for ${card.name}!")
         return CardPurchaseOptions(
                 card,
